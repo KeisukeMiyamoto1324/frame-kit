@@ -2,6 +2,7 @@ from master_scene import MasterScene
 from scene import Scene
 from text_element import TextElement
 from audio_element import AudioElement
+from image_element import ImageElement
 
 def create_subtitle(text, start_time, duration=4.0):
     """Create a centered subtitle at the bottom of the screen"""
@@ -47,10 +48,18 @@ def main():
     # Create main scene
     scene = Scene()
     
+    # Add background image
+    background = (
+        ImageElement("sample_asset/image.png")
+            .position(0, 0)  # Position at top-left
+            .start_at(0)
+    )
+    scene.add(background)
+    
     # Add background music
     bgm = (
         AudioElement("sample_asset/sample-bgm.mp3")
-            .set_volume(0.25)  # Lower volume for background
+            .set_volume(0.5)  # Much lower volume for background to hear effects
             .set_loop_until_scene_end(True)  # Loop until scene ends
             .start_at(0)
     )
@@ -96,7 +105,8 @@ def main():
         # Add sound effect for each chapter
         effect_sound = (
             AudioElement("sample_asset/sample-effect.mp3")
-                .set_volume(0.6)  # Medium volume for effect
+                .set_volume(1.0)  # Full volume for effect to be clearly audible
+                .set_duration(2.0)  # Explicit duration for effect sound
                 .start_at(start_time)
         )
         scene.add(effect_sound)
@@ -114,8 +124,11 @@ def main():
         chapter_title.position(chapter_title_x, chapter_title_y)
         scene.add(chapter_title)
     
-    # Add scene to master scene and render
+    # Add scene to master scene
     master_scene.add(scene)
+    
+    # Set background duration to match total duration
+    background.set_duration(master_scene.total_duration)
     
     print("Starting to render computer science history video...")
     master_scene.render()
