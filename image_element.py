@@ -1,13 +1,12 @@
 import os
 import numpy as np
-from typing import Tuple
 from OpenGL.GL import *
 from PIL import Image
 from video_element import VideoElement
 
 
 class ImageElement(VideoElement):
-    """;œÅ """
+    """Image element for rendering image files"""
     def __init__(self, image_path: str, scale: float = 1.0):
         super().__init__()
         self.image_path = image_path
@@ -20,50 +19,51 @@ class ImageElement(VideoElement):
         self._create_image_texture()
     
     def _create_image_texture(self):
-        """;œn∆Øπ¡„í\"""
-        # ∆Øπ¡„\oågrenderBkLFOpenGL≥Û∆≠π»L≈Åj_Å	
+        """Initialize image texture creation"""
+        # Texture creation is deferred until render time (requires OpenGL context)
         self.texture_created = False
     
     def _create_texture_now(self):
-        """OpenGL≥Û∆≠π»Ög∆Øπ¡„í\"""
+        """Create texture within OpenGL context"""
         if not os.path.exists(self.image_path):
             print(f"Warning: Image file not found: {self.image_path}")
             return
         
         try:
-            # ;œí≠º
+            # Load image
             img = Image.open(self.image_path)
             
-            # RGBAbk	€¢Î’°¡„ÛÕÎ˛‹	
+            # Convert to RGBA format (for alpha channel support)
             if img.mode != 'RGBA':
                 img = img.convert('RGBA')
             
-            # Cnµ§∫í›X
+            # Save original size
             self.original_width, self.original_height = img.size
             
-            # π±¸ÍÛ∞i(
+            # Apply scaling
             if self.scale != 1.0:
                 new_width = int(self.original_width * self.scale)
                 new_height = int(self.original_height * self.scale)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # ∆Øπ¡„µ§∫íÙ∞
+            # Update texture size
             self.texture_width, self.texture_height = img.size
             
-            # ;œíNumPyMk	€
+            # Convert image to NumPy array and flip vertically for OpenGL
             img_data = np.array(img)
+            img_data = np.flipud(img_data)  # Flip image vertically for OpenGL coordinate system
             
-            # OpenGL∆Øπ¡„í
+            # Generate OpenGL texture
             self.texture_id = glGenTextures(1)
             glBindTexture(GL_TEXTURE_2D, self.texture_id)
             
-            # ∆Øπ¡„—È·¸øí-ö
+            # Set texture parameters
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
             
-            # ∆Øπ¡„«¸øí¢√◊Ì¸…
+            # Upload texture data
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.texture_width, self.texture_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_data)
             
             glBindTexture(GL_TEXTURE_2D, 0)
@@ -74,57 +74,63 @@ class ImageElement(VideoElement):
             self.texture_created = False
     
     def set_scale(self, scale: float):
-        """π±¸Îí-ö"""
+        """Set image scale"""
         self.scale = scale
-        # ∆Øπ¡„nç\L≈Å
+        # Need to recreate texture
         if self.texture_created:
             self.texture_created = False
         return self
     
     def render(self, time: float):
-        """;œíÏÛ¿ÍÛ∞"""
+        """Render image"""
         if not self.is_visible_at(time):
             return
         
-        # ∆Øπ¡„L~`\UåfDjD4o\
+        # Create texture if not yet created
         if not self.texture_created:
             self._create_texture_now()
         
-        if self.texture_id is None:
+        if self.texture_id is None or not self.texture_created:
             return
         
-        # ∆Øπ¡„í	πkYã
+        # Save current OpenGL state
+        glPushAttrib(GL_ALL_ATTRIB_BITS)
+        
+        # Enable texture
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture_id)
         
-        # ¢Î’°÷ÏÛ«£Û∞í	πkYã
+        # Enable alpha blending
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # }rg∆Øπ¡„íœ;∆Øπ¡„nrL]n~~(Uåã	
-        glColor4f(1.0, 1.0, 1.0, 1.0)
+        # Set texture environment to replace (preserves texture colors)
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)
         
-        # ∆Øπ¡„ÿMn€“bíœ;
+        # Draw textured quad with corrected texture coordinates
         glBegin(GL_QUADS)
+        # Bottom-left
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(self.x, self.y)
+        glVertex2f(self.x, self.y + self.texture_height)
         
+        # Bottom-right
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(self.x + self.texture_width, self.y)
-        
-        glTexCoord2f(1.0, 1.0)
         glVertex2f(self.x + self.texture_width, self.y + self.texture_height)
         
+        # Top-right
+        glTexCoord2f(1.0, 1.0)
+        glVertex2f(self.x + self.texture_width, self.y)
+        
+        # Top-left
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(self.x, self.y + self.texture_height)
+        glVertex2f(self.x, self.y)
         glEnd()
         
-        # ∆Øπ¡„í!πkYã
-        glBindTexture(GL_TEXTURE_2D, 0)
-        glDisable(GL_TEXTURE_2D)
+        # Restore OpenGL state
+        glPopAttrib()
     
     def __del__(self):
-        """«π»ÈØøg∆Øπ¡„íJd"""
+        """Destructor to clean up texture"""
         if self.texture_id:
             try:
                 glDeleteTextures(1, [self.texture_id])

@@ -11,38 +11,49 @@ warnings.filterwarnings("ignore", message=".*pkg_resources.*")
 from master_scene import MasterScene
 from scene import Scene
 from text_element import Text
+from image_element import ImageElement
 
 
 def main():
-    """メイン関数 - 動画作成のデモ"""
-    # マスターシーンを作成
+    """Main function - Video creation demo with text and image"""
+    # Create master scene
     master_scene = MasterScene(width=1920, height=1080, fps=60)
-    master_scene.set_output("text_demo.mp4")
+    master_scene.set_output("text_and_image_demo.mp4")
     
-    # シーンを作成
+    # Create scene
     scene = Scene()
     
-    # テキスト要素を作成（位置は画面の中央付近）
+    # Create text elements (positioned near screen center)
     text1 = (
         Text("Hello", size=100, color=(255, 0, 0))
-            .position(960, 540)
+            .position(960, 300)
             .set_duration(3)
     )
     text2 = (
         Text("World", size=80, color=(0, 255, 0))
-            .position(960, 640)
+            .position(960, 400)
             .set_duration(5)
             .start_at(1)
     )
     
-    # シーンに追加
+    # Create image element
+    image1 = (
+        ImageElement("sample.jpg")
+            .position(500, 500)
+            .set_scale(0.5)
+            .set_duration(4)
+            .start_at(0.5)
+    )
+    
+    # Add elements to scene
     scene.add(text1)
     scene.add(text2)
+    scene.add(image1)
     
-    # マスターシーンに追加
+    # Add scene to master scene
     master_scene.add(scene)
     
-    # レンダリング実行
+    # Execute rendering
     master_scene.render()
 
 
