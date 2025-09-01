@@ -10,27 +10,28 @@ warnings.filterwarnings("ignore", message=".*pkg_resources.*")
 
 from master_scene import MasterScene
 from scene import Scene
-from text_element import Text
+from text_element import TextElement
 from image_element import ImageElement
+from video_element import VideoElement
 
 
 def main():
-    """Main function - Video creation demo with text and image"""
+    """Main function - Video creation demo with text, image, and video"""
     # Create master scene
     master_scene = MasterScene(width=1920, height=1080, fps=60)
-    master_scene.set_output("text_and_image_demo.mp4")
+    master_scene.set_output("text_image_video_demo.mp4")
     
     # Create scene
     scene = Scene()
     
     # Create text elements (positioned near screen center)
     text1 = (
-        Text("Hello", size=100, color=(255, 0, 0))
+        TextElement("Hello", size=100, color=(255, 0, 0))
             .position(960, 300)
             .set_duration(3)
     )
     text2 = (
-        Text("World", size=80, color=(0, 255, 0))
+        TextElement("World", size=80, color=(0, 255, 0))
             .position(960, 400)
             .set_duration(5)
             .start_at(1)
@@ -38,17 +39,27 @@ def main():
     
     # Create image element
     image1 = (
-        ImageElement("sample.jpg")
+        ImageElement("sample_asset/sample.jpg")
             .position(500, 500)
             .set_scale(0.5)
             .set_duration(4)
             .start_at(0.5)
     )
     
+    # Create video element
+    video1 = (
+        VideoElement("sample_asset/sample.mp4")
+            .position(100, 100)
+            .set_scale(0.3)
+            .set_duration(6)
+            .start_at(1.5)
+    )
+    
     # Add elements to scene
     scene.add(text1)
     scene.add(text2)
     scene.add(image1)
+    scene.add(video1)
     
     # Add scene to master scene
     master_scene.add(scene)

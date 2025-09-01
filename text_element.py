@@ -3,10 +3,10 @@ import numpy as np
 from typing import Tuple
 from OpenGL.GL import *
 from PIL import Image, ImageDraw, ImageFont
-from video_element import VideoElement
+from video_base import VideoBase
 
 
-class Text(VideoElement):
+class TextElement(VideoBase):
     """テキスト要素"""
     def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), font_path: str = None):
         super().__init__()

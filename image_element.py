@@ -2,10 +2,10 @@ import os
 import numpy as np
 from OpenGL.GL import *
 from PIL import Image
-from video_element import VideoElement
+from video_base import VideoBase
 
 
-class ImageElement(VideoElement):
+class ImageElement(VideoBase):
     """Image element for rendering image files"""
     def __init__(self, image_path: str, scale: float = 1.0):
         super().__init__()

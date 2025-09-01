@@ -41,7 +41,7 @@ The video editor is built around a modular class-based architecture:
 
 ### Core Components
 
-1. **VideoElement** (`video_element.py`): Base class for all video elements
+1. **VideoBase** (`video_element.py`): Base class for all video elements
    - Handles positioning, timing, and visibility logic
    - Provides fluent interface methods (position, set_duration, start_at)
    - All elements inherit from this class

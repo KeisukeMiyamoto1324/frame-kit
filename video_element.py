@@ -1,35 +1,191 @@
-from typing import List, Optional, Tuple
+import os
+import cv2
+import numpy as np
+from OpenGL.GL import *
+from video_base import VideoBase
 
 
-class VideoElement:
-    """動画要素の基底クラス"""
-    def __init__(self):
-        self.x = 0.0
-        self.y = 0.0
-        self.start_time = 0.0
-        self.duration = 1.0
-        self.visible = True
+class VideoElement(VideoBase):
+    """Video clip element for rendering video files"""
+    def __init__(self, video_path: str, scale: float = 1.0):
+        super().__init__()
+        self.video_path = video_path
+        self.scale = scale
+        self.texture_id = None
+        self.texture_width = 0
+        self.texture_height = 0
+        self.original_width = 0
+        self.original_height = 0
+        self.video_capture = None
+        self.fps = 30.0
+        self.total_frames = 0
+        self.current_frame_data = None
+        self._create_video_texture()
     
-    def position(self, x: float, y: float):
-        """位置を設定"""
-        self.x = x
-        self.y = y
+    def _create_video_texture(self):
+        """Initialize video texture creation"""
+        # Texture creation is deferred until render time (requires OpenGL context)
+        self.texture_created = False
+        self._load_video_info()
+    
+    def _load_video_info(self):
+        """Load video file information"""
+        if not os.path.exists(self.video_path):
+            print(f"Warning: Video file not found: {self.video_path}")
+            return
+        
+        try:
+            self.video_capture = cv2.VideoCapture(self.video_path)
+            
+            if not self.video_capture.isOpened():
+                print(f"Error: Cannot open video file: {self.video_path}")
+                return
+            
+            # Get video properties
+            self.original_width = int(self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.original_height = int(self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.fps = self.video_capture.get(cv2.CAP_PROP_FPS)
+            self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            # Calculate scaled dimensions
+            self.texture_width = int(self.original_width * self.scale)
+            self.texture_height = int(self.original_height * self.scale)
+            
+            print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames")
+            
+        except Exception as e:
+            print(f"Error loading video info {self.video_path}: {e}")
+    
+    def _create_texture_now(self):
+        """Create OpenGL texture"""
+        if self.texture_id is None:
+            self.texture_id = glGenTextures(1)
+        
+        glBindTexture(GL_TEXTURE_2D, self.texture_id)
+        
+        # Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        
+        glBindTexture(GL_TEXTURE_2D, 0)
+        self.texture_created = True
+    
+    def _get_frame_at_time(self, video_time: float):
+        """Get video frame at specific time"""
+        if self.video_capture is None or not self.video_capture.isOpened():
+            return None
+        
+        # Calculate frame number based on time
+        frame_number = int(video_time * self.fps)
+        frame_number = max(0, min(frame_number, self.total_frames - 1))
+        
+        # Set video position to desired frame
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+        
+        # Read frame
+        ret, frame = self.video_capture.read()
+        if not ret:
+            return None
+        
+        # Convert BGR to RGB
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Resize if needed
+        if self.scale != 1.0:
+            new_width = int(self.original_width * self.scale)
+            new_height = int(self.original_height * self.scale)
+            frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+        
+        # Add alpha channel
+        alpha = np.full((frame.shape[0], frame.shape[1], 1), 255, dtype=np.uint8)
+        frame = np.concatenate([frame, alpha], axis=2)
+        
+        # Flip vertically for OpenGL coordinate system
+        frame = np.flipud(frame)
+        
+        return frame
+    
+    def set_scale(self, scale: float):
+        """Set video scale"""
+        self.scale = scale
+        # Update texture dimensions
+        if hasattr(self, 'original_width'):
+            self.texture_width = int(self.original_width * self.scale)
+            self.texture_height = int(self.original_height * self.scale)
         return self
-    
-    def set_duration(self, duration: float):
-        """表示時間を設定"""
-        self.duration = duration
-        return self
-    
-    def start_at(self, time: float):
-        """開始時間を設定"""
-        self.start_time = time
-        return self
-    
-    def is_visible_at(self, time: float) -> bool:
-        """指定時間に表示されるかチェック"""
-        return self.start_time <= time < (self.start_time + self.duration)
     
     def render(self, time: float):
-        """要素をレンダリング（サブクラスで実装）"""
-        pass
+        """Render video frame"""
+        if not self.is_visible_at(time):
+            return
+        
+        if self.video_capture is None:
+            return
+        
+        # Create texture if not yet created
+        if not self.texture_created:
+            self._create_texture_now()
+        
+        if self.texture_id is None:
+            return
+        
+        # Calculate video time (time within the video clip)
+        video_time = time - self.start_time
+        
+        # Get current frame
+        frame_data = self._get_frame_at_time(video_time)
+        if frame_data is None:
+            return
+        
+        # Save current OpenGL state
+        glPushAttrib(GL_ALL_ATTRIB_BITS)
+        
+        # Update texture with current frame
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, self.texture_id)
+        
+        # Upload frame data to texture
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.texture_width, self.texture_height, 
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, frame_data)
+        
+        # Enable alpha blending
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        # Set texture environment to replace (preserves texture colors)
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)
+        
+        # Draw textured quad with corrected texture coordinates
+        glBegin(GL_QUADS)
+        # Bottom-left
+        glTexCoord2f(0.0, 0.0)
+        glVertex2f(self.x, self.y + self.texture_height)
+        
+        # Bottom-right
+        glTexCoord2f(1.0, 0.0)
+        glVertex2f(self.x + self.texture_width, self.y + self.texture_height)
+        
+        # Top-right
+        glTexCoord2f(1.0, 1.0)
+        glVertex2f(self.x + self.texture_width, self.y)
+        
+        # Top-left
+        glTexCoord2f(0.0, 1.0)
+        glVertex2f(self.x, self.y)
+        glEnd()
+        
+        # Restore OpenGL state
+        glPopAttrib()
+    
+    def __del__(self):
+        """Destructor to clean up resources"""
+        if self.video_capture:
+            self.video_capture.release()
+        
+        if self.texture_id:
+            try:
+                glDeleteTextures(1, [self.texture_id])
+            except:
+                pass

@@ -1,15 +1,15 @@
 from typing import List
-from video_element import VideoElement
+from video_base import VideoBase
 
 
 class Scene:
     """シーンクラス - 複数の要素をまとめて管理"""
     def __init__(self):
-        self.elements: List[VideoElement] = []
+        self.elements: List[VideoBase] = []
         self.start_time = 0.0
         self.duration = 0.0
     
-    def add(self, element: VideoElement):
+    def add(self, element: VideoBase):
         """要素をシーンに追加"""
         self.elements.append(element)
         # シーンの継続時間を更新
