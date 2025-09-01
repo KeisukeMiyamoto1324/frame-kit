@@ -41,23 +41,35 @@ The video editor is built around a modular class-based architecture:
 
 ### Core Components
 
-1. **VideoBase** (`video_element.py`): Base class for all video elements
+1. **VideoBase** (`video_base.py`): Base class for all video elements
    - Handles positioning, timing, and visibility logic
    - Provides fluent interface methods (position, set_duration, start_at)
    - All elements inherit from this class
 
-2. **Text** (`text_element.py`): Text rendering component
+2. **TextElement** (`text_element.py`): Text rendering component
    - Creates OpenGL textures from text using PIL/Pillow
    - Supports custom fonts, colors, and sizes
    - Handles macOS system font fallback (Arial.ttf → Helvetica.ttc → default)
    - Lazy texture creation (only when OpenGL context is available)
 
-3. **Scene** (`scene.py`): Container for multiple video elements
+3. **ImageElement** (`image_element.py`): Image rendering component
+   - Loads and renders static image files (JPG, PNG, etc.)
+   - Supports image scaling and alpha transparency
+   - Uses PIL for image loading and OpenGL for texture rendering
+   - Lazy texture creation with deferred loading
+
+4. **VideoElement** (`video_element.py`): Video clip rendering component
+   - Renders video files frame-by-frame using OpenCV
+   - Supports video scaling and frame-accurate timing
+   - Handles video format conversion (BGR to RGB) and alpha channel
+   - Frame caching and OpenGL texture updates per render frame
+
+5. **Scene** (`scene.py`): Container for multiple video elements
    - Groups elements and manages their collective timing
    - Handles scene-relative time calculations
    - Can be positioned at specific times in the timeline
 
-4. **MasterScene** (`master_scene.py`): Main video composition manager
+6. **MasterScene** (`master_scene.py`): Main video composition manager
    - Handles overall video settings (width, height, fps, output filename)
    - Manages pygame/OpenGL context and rendering pipeline
    - Exports final video using OpenCV with progress tracking
@@ -68,11 +80,14 @@ The video editor is built around a modular class-based architecture:
 ```
 video-editer/
 ├── main.py              # Main application entry point
-├── sample.py            # Alternative demo script
-├── video_element.py     # Base class for all video elements
+├── sample.py            # Alternative demo script (if exists)
+├── video_base.py        # Base class for all video elements
 ├── text_element.py      # Text rendering implementation
+├── image_element.py     # Image rendering implementation
+├── video_element.py     # Video clip rendering implementation
 ├── scene.py             # Scene container class
 ├── master_scene.py      # Main video composition manager
+├── sample_asset/        # Sample media files (images, videos)
 ├── output/              # Generated video files
 └── venv/                # Python virtual environment
 ```
@@ -81,7 +96,7 @@ video-editer/
 
 - Videos are saved to the `output/` directory (auto-created)
 - Default output format is MP4 with mp4v codec
-- Standard example creates `output/text_demo.mp4`
+- Example output: `output/text_image_video_demo.mp4`
 
 ## Development Patterns
 
@@ -89,11 +104,30 @@ video-editer/
 
 Elements use a fluent interface pattern:
 ```python
+# Text element
 text = (
-    Text("Hello", size=100, color=(255, 0, 0))
+    TextElement("Hello", size=100, color=(255, 0, 0))
         .position(960, 540)
         .set_duration(3)
         .start_at(1)
+)
+
+# Image element
+image = (
+    ImageElement("sample_asset/image.jpg")
+        .position(500, 500)
+        .set_scale(0.5)
+        .set_duration(4)
+        .start_at(0.5)
+)
+
+# Video element
+video = (
+    VideoElement("sample_asset/video.mp4")
+        .position(100, 100)
+        .set_scale(0.3)
+        .set_duration(6)
+        .start_at(1.5)
 )
 ```
 
@@ -111,7 +145,9 @@ master_scene.add(scene)
 ```python
 from master_scene import MasterScene
 from scene import Scene  
-from text_element import Text
+from text_element import TextElement
+from image_element import ImageElement
+from video_element import VideoElement
 
 # Create master scene
 master_scene = MasterScene(width=1920, height=1080, fps=60)
@@ -119,8 +155,13 @@ master_scene.set_output("my_video.mp4")
 
 # Create and populate scene
 scene = Scene()
-text = Text("Hello World", size=100, color=(255, 0, 0)).position(960, 540)
+text = TextElement("Hello World", size=100, color=(255, 0, 0)).position(960, 540)
+image = ImageElement("sample_asset/image.jpg").position(500, 500).set_scale(0.5)
+video = VideoElement("sample_asset/video.mp4").position(100, 100).set_scale(0.3)
+
 scene.add(text)
+scene.add(image)
+scene.add(video)
 
 # Render video
 master_scene.add(scene)
@@ -139,4 +180,25 @@ master_scene.render()
 - **Cross-platform**: Falls back to default fonts if system fonts unavailable  
 - **Hidden Window**: Renders off-screen using SDL video driver settings
 - **Environment**: Suppresses pygame support prompts and pkg_resources warnings
-- Always use pip3 instead pip
+- Always use pip3 instead of pip
+
+## Element-Specific Methods
+
+### All Elements (VideoBase)
+- `.position(x, y)`: Set element position in pixels
+- `.set_duration(seconds)`: Set how long element appears
+- `.start_at(seconds)`: Set when element starts appearing
+
+### TextElement
+- Constructor: `TextElement(text, size=50, color=(255,255,255), font_path=None)`
+- Supports RGB color tuples, automatic font fallback
+
+### ImageElement  
+- Constructor: `ImageElement(image_path, scale=1.0)`
+- `.set_scale(scale)`: Resize image (1.0 = original size)
+- Supports common formats: JPG, PNG, etc.
+
+### VideoElement
+- Constructor: `VideoElement(video_path, scale=1.0)`  
+- `.set_scale(scale)`: Resize video frames
+- Automatically handles video timing and frame extraction
