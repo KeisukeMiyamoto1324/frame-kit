@@ -25,6 +25,11 @@ class VideoBase:
         # 角丸設定
         self.corner_radius = 0
         
+        # クロップ設定
+        self.crop_width = None
+        self.crop_height = None
+        self.crop_mode = 'fill'  # 'fill' or 'fit'
+        
         # ボックスサイズ（背景・枠線を含む最終的なサイズ）
         self.width = 0
         self.height = 0
@@ -82,6 +87,23 @@ class VideoBase:
         # テクスチャを再作成する必要がある
         self.texture_created = False
         # サイズを再計算（角丸は通常サイズに影響しないが、将来の拡張のため）
+        self.calculate_size()
+        return self
+    
+    def set_crop(self, width: int, height: int, mode: str = 'fill'):
+        """クロップサイズとモードを設定
+        
+        Args:
+            width: クロップ後の幅
+            height: クロップ後の高さ  
+            mode: 'fill' (はみ出し部分をクロップ) or 'fit' (全体を収める)
+        """
+        self.crop_width = width
+        self.crop_height = height
+        self.crop_mode = mode
+        # テクスチャを再作成する必要がある
+        self.texture_created = False
+        # サイズを再計算
         self.calculate_size()
         return self
 
@@ -162,6 +184,69 @@ class VideoBase:
         
         # マスクを適用して角丸にクリッピング
         img.putalpha(mask)
+        
+        return img
+    
+    def _calculate_crop_dimensions(self, original_width: int, original_height: int) -> Tuple[int, int, int, int]:
+        """クロップのスケールと位置を計算
+        
+        Returns:
+            (scaled_width, scaled_height, crop_x, crop_y)
+        """
+        if self.crop_width is None or self.crop_height is None:
+            return original_width, original_height, 0, 0
+        
+        target_width = self.crop_width
+        target_height = self.crop_height
+        
+        if self.crop_mode == 'fill':
+            # アスペクト比を維持して、指定サイズを完全に埋める（はみ出し部分をクロップ）
+            scale = max(target_width / original_width, target_height / original_height)
+        else:  # fit
+            # アスペクト比を維持して、指定サイズに収まる最大サイズ
+            scale = min(target_width / original_width, target_height / original_height)
+        
+        # スケール後のサイズ
+        scaled_width = int(original_width * scale)
+        scaled_height = int(original_height * scale)
+        
+        # クロップ位置を計算（中央クロップ）
+        crop_x = max(0, (scaled_width - target_width) // 2)
+        crop_y = max(0, (scaled_height - target_height) // 2)
+        
+        return scaled_width, scaled_height, crop_x, crop_y
+    
+    def _apply_crop_to_image(self, img: Image.Image) -> Image.Image:
+        """画像にクロップを適用
+        
+        Args:
+            img: 元の画像
+            
+        Returns:
+            クロップされた画像
+        """
+        if self.crop_width is None or self.crop_height is None:
+            return img
+        
+        original_width, original_height = img.size
+        scaled_width, scaled_height, crop_x, crop_y = self._calculate_crop_dimensions(original_width, original_height)
+        
+        # まずスケールを適用
+        if scaled_width != original_width or scaled_height != original_height:
+            img = img.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+        
+        # クロップを適用
+        if self.crop_mode == 'fill':
+            # fillモード: 指定サイズでクロップ
+            crop_box = (crop_x, crop_y, crop_x + self.crop_width, crop_y + self.crop_height)
+            img = img.crop(crop_box)
+        else:  # fit
+            # fitモード: 新しいキャンバスを作成して中央に配置
+            canvas = Image.new('RGBA', (self.crop_width, self.crop_height), (0, 0, 0, 0))
+            paste_x = (self.crop_width - scaled_width) // 2
+            paste_y = (self.crop_height - scaled_height) // 2
+            canvas.paste(img, (paste_x, paste_y), img)
+            img = canvas
         
         return img
 

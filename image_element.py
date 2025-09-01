@@ -48,6 +48,9 @@ class ImageElement(VideoBase):
                 new_height = int(self.original_height * self.scale)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
+            # Apply crop if specified
+            img = self._apply_crop_to_image(img)
+            
             # Apply corner radius clipping to image content
             img = self._apply_corner_radius_to_image(img)
             
@@ -160,9 +163,17 @@ class ImageElement(VideoBase):
             scaled_width = int(original_width * self.scale)
             scaled_height = int(original_height * self.scale)
             
+            # クロップが設定されている場合はクロップサイズを使用
+            if self.crop_width is not None and self.crop_height is not None:
+                content_width = self.crop_width
+                content_height = self.crop_height
+            else:
+                content_width = scaled_width
+                content_height = scaled_height
+            
             # パディングを含むキャンバスサイズを計算
-            canvas_width = scaled_width + self.padding['left'] + self.padding['right']
-            canvas_height = scaled_height + self.padding['top'] + self.padding['bottom']
+            canvas_width = content_width + self.padding['left'] + self.padding['right']
+            canvas_height = content_height + self.padding['top'] + self.padding['bottom']
             
             # 最小サイズを保証
             canvas_width = max(canvas_width, 1)

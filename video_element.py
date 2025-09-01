@@ -147,8 +147,11 @@ class VideoElement(VideoBase):
         alpha = np.full((frame.shape[0], frame.shape[1], 1), 255, dtype=np.uint8)
         frame = np.concatenate([frame, alpha], axis=2)
         
-        # Convert to PIL Image for corner radius and border/background processing
+        # Convert to PIL Image for crop and corner radius and border/background processing
         pil_frame = Image.fromarray(frame, 'RGBA')
+        
+        # Apply crop if specified
+        pil_frame = self._apply_crop_to_image(pil_frame)
         
         # Apply corner radius clipping to video frame
         pil_frame = self._apply_corner_radius_to_image(pil_frame)
@@ -326,9 +329,17 @@ class VideoElement(VideoBase):
         scaled_width = int(self.original_width * self.scale)
         scaled_height = int(self.original_height * self.scale)
         
+        # クロップが設定されている場合はクロップサイズを使用
+        if self.crop_width is not None and self.crop_height is not None:
+            content_width = self.crop_width
+            content_height = self.crop_height
+        else:
+            content_width = scaled_width
+            content_height = scaled_height
+        
         # パディングを含むキャンバスサイズを計算
-        canvas_width = scaled_width + self.padding['left'] + self.padding['right']
-        canvas_height = scaled_height + self.padding['top'] + self.padding['bottom']
+        canvas_width = content_width + self.padding['left'] + self.padding['right']
+        canvas_height = content_height + self.padding['top'] + self.padding['bottom']
         
         # 最小サイズを保証
         canvas_width = max(canvas_width, 1)

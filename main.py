@@ -51,6 +51,7 @@ def main():
     # Add background image
     background = (
         ImageElement("sample_asset/image.png")
+            .set_crop(1920, 1080, mode='fill')  # Fill entire 1080p screen
             .position(0, 0)  # Position at top-left
             .start_at(0)
     )
