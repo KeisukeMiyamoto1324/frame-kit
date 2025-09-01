@@ -9,9 +9,9 @@ This is a Python-based video editor that programmatically generates videos using
 ## Development Setup
 
 The project uses a Python virtual environment:
-- **Virtual Environment**: `venv/` directory contains the Python virtual environment
-- **Python Version**: Python 3.12 (based on venv structure)
-- **Main Script**: `sample.py` contains the complete video editor implementation
+- **Virtual Environment**: `venv/` directory contains the Python virtual environment  
+- **Python Version**: Python 3.12
+- **Main Entry Points**: `main.py` or `sample.py` both demonstrate video creation
 
 ### Running the Application
 
@@ -19,48 +19,69 @@ The project uses a Python virtual environment:
 # Activate the virtual environment (macOS/Linux)
 source venv/bin/activate
 
-# Run the main video editor
+# Run the main video editor (either works)
+python main.py
+# or
 python sample.py
 ```
 
+### Key Dependencies
+
+Core libraries required for video generation:
+- **pygame**: Window management and OpenGL context
+- **PyOpenGL**: Low-level OpenGL graphics rendering  
+- **numpy**: Array operations for image data
+- **opencv-python**: Video encoding and file output
+- **pillow**: Text rendering and image manipulation
+- **tqdm**: Progress bars during rendering
+
 ## Core Architecture
 
-The video editor is built around several key classes in `sample.py`:
+The video editor is built around a modular class-based architecture:
 
 ### Core Components
 
-1. **VideoElement** (`sample.py:12-43`): Base class for all video elements
-   - Handles positioning, timing, and visibility
+1. **VideoElement** (`video_element.py`): Base class for all video elements
+   - Handles positioning, timing, and visibility logic
+   - Provides fluent interface methods (position, set_duration, start_at)
    - All elements inherit from this class
 
-2. **Text** (`sample.py:46-180`): Text rendering component
+2. **Text** (`text_element.py`): Text rendering component
    - Creates OpenGL textures from text using PIL/Pillow
    - Supports custom fonts, colors, and sizes
-   - Handles font fallback for different systems
+   - Handles macOS system font fallback (Arial.ttf → Helvetica.ttc → default)
+   - Lazy texture creation (only when OpenGL context is available)
 
-3. **Scene** (`sample.py:183-210`): Container for multiple video elements
-   - Manages timing and rendering of grouped elements
+3. **Scene** (`scene.py`): Container for multiple video elements
+   - Groups elements and manages their collective timing
+   - Handles scene-relative time calculations
    - Can be positioned at specific times in the timeline
 
-4. **MasterScene** (`sample.py:213-330`): Main video composition manager
-   - Handles overall video settings (width, height, fps)
-   - Manages OpenGL context and rendering pipeline
-   - Exports final video using OpenCV
+4. **MasterScene** (`master_scene.py`): Main video composition manager
+   - Handles overall video settings (width, height, fps, output filename)
+   - Manages pygame/OpenGL context and rendering pipeline
+   - Exports final video using OpenCV with progress tracking
+   - Hidden window rendering using SDL video driver settings
 
-### Key Dependencies
+### Project Structure
 
-The project relies on several Python libraries:
-- **pygame**: Window management and OpenGL context
-- **OpenGL.GL/GLU**: Low-level graphics rendering
-- **numpy**: Array operations for image data
-- **cv2 (OpenCV)**: Video encoding and file output
-- **PIL (Pillow)**: Text rendering and image manipulation
+```
+video-editer/
+├── main.py              # Main application entry point
+├── sample.py            # Alternative demo script
+├── video_element.py     # Base class for all video elements
+├── text_element.py      # Text rendering implementation
+├── scene.py             # Scene container class
+├── master_scene.py      # Main video composition manager
+├── output/              # Generated video files
+└── venv/                # Python virtual environment
+```
 
 ### Output Structure
 
-- Videos are saved to the `output/` directory
+- Videos are saved to the `output/` directory (auto-created)
 - Default output format is MP4 with mp4v codec
-- The example creates `output/text_demo.mp4`
+- Standard example creates `output/text_demo.mp4`
 
 ## Development Patterns
 
@@ -85,6 +106,27 @@ scene.add(text_element)
 master_scene.add(scene)
 ```
 
+### Complete Video Creation Example
+
+```python
+from master_scene import MasterScene
+from scene import Scene  
+from text_element import Text
+
+# Create master scene
+master_scene = MasterScene(width=1920, height=1080, fps=60)
+master_scene.set_output("my_video.mp4")
+
+# Create and populate scene
+scene = Scene()
+text = Text("Hello World", size=100, color=(255, 0, 0)).position(960, 540)
+scene.add(text)
+
+# Render video
+master_scene.add(scene)
+master_scene.render()
+```
+
 ### Coordinate System
 
 - Uses pixel coordinates with origin at top-left (0, 0)
@@ -94,5 +136,7 @@ master_scene.add(scene)
 ## Platform Considerations
 
 - **macOS**: Uses system fonts like Arial.ttf and Helvetica.ttc
-- **Cross-platform**: Falls back to default fonts if system fonts unavailable
+- **Cross-platform**: Falls back to default fonts if system fonts unavailable  
 - **Hidden Window**: Renders off-screen using SDL video driver settings
+- **Environment**: Suppresses pygame support prompts and pkg_resources warnings
+- Always use pip3 instead pip
