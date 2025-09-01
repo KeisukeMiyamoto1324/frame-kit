@@ -1,8 +1,10 @@
+import os
 from master_scene import MasterScene
 from scene import Scene
 from text_element import TextElement
 from audio_element import AudioElement
 from image_element import ImageElement
+from animation import AnimationPresets
 
 def create_subtitle(text, start_time, duration=4.0):
     """Create a centered subtitle at the bottom of the screen"""
@@ -78,15 +80,6 @@ def main():
         ("In the 9th century, Persian mathematician\nAl-Khwarizmi gave us the word 'algorithm'.", 23, 5),
         ("The 1600s brought us binary numbers\nthanks to Gottfried Leibniz.", 29, 4),
         ("Charles Babbage designed the first\nmechanical computer in the 1830s.", 34, 4),
-        ("Ada Lovelace wrote what many consider\nthe first computer program in 1843.", 39, 5),
-        ("The 1940s saw the birth of electronic computers\nlike ENIAC and the stored-program concept.", 45, 5),
-        ("Alan Turing's work on computability\nlaid the foundation for modern computing.", 51, 5),
-        ("The transistor, invented in 1947,\nrevolutionized computer design.", 57, 4),
-        ("The 1970s brought us personal computers,\nmaking computing accessible to everyone.", 62, 5),
-        ("The Internet emerged from ARPANET,\nconnecting computers worldwide.", 68, 4),
-        ("Today, computer science encompasses\nAI, machine learning, and quantum computing.", 73, 5),
-        ("From ancient algorithms to modern AI,\ncomputer science continues to evolve.", 79, 5),
-        ("Thank you for joining this journey\nthrough computer science history!", 85, 4)
     ]
     
     for text, start_time, duration in subtitles:
@@ -124,6 +117,24 @@ def main():
         chapter_title_y = 200
         chapter_title.position(chapter_title_x, chapter_title_y)
         scene.add(chapter_title)
+    
+    # 犬の画像（4000x3000px → 0.1倍で400x300px）をテロップの上、画面右側に配置
+    dog_pulse = (
+        ImageElement("sample_asset/dog.jpg")
+            # .set_scale(0.5)
+            # .set_border([127, 127, 127], 5)
+            .position(100, 100)
+            .set_duration(master_scene.total_duration or 90)
+            .start_at(0)
+            .animate_pulse_until_end(
+                from_scale=0.3,
+                to_scale=0.45,
+                duration=1.5,
+                repeat_delay=0.1,
+                scene_duration=master_scene.total_duration or 90
+            )
+    )
+    scene.add(dog_pulse)
     
     # Add scene to master scene
     master_scene.add(scene)

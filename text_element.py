@@ -228,12 +228,36 @@ class TextElement(VideoBase):
         if not self.is_visible_at(time):
             return
         
+        # アニメーションプロパティを適用
+        self.update_animated_properties(time)
+        
         # テクスチャがまだ作成されていない場合は作成
         if not self.texture_created:
             self._create_texture_now()
         
         if self.texture_id is None:
             return
+        
+        # 変換行列を保存
+        glPushMatrix()
+        
+        # 中心点を基準に変換を適用
+        center_x = self.x + self.texture_width / 2
+        center_y = self.y + self.texture_height / 2
+        
+        # 中心点に移動
+        glTranslatef(center_x, center_y, 0)
+        
+        # 回転を適用
+        if hasattr(self, 'rotation') and self.rotation != 0:
+            glRotatef(self.rotation, 0, 0, 1)
+        
+        # スケールを適用
+        if hasattr(self, 'scale') and self.scale != 1.0:
+            glScalef(self.scale, self.scale, 1.0)
+        
+        # 中心点を戻す
+        glTranslatef(-center_x, -center_y, 0)
         
         # テクスチャを有効にする
         glEnable(GL_TEXTURE_2D)
@@ -243,8 +267,11 @@ class TextElement(VideoBase):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # 白色でテクスチャを描画（テクスチャの色がそのまま使用される）
-        glColor4f(1.0, 1.0, 1.0, 1.0)
+        # アルファ値を適用（アニメーション考慮）
+        alpha_value = 1.0
+        if hasattr(self, 'background_alpha'):
+            alpha_value = self.background_alpha / 255.0
+        glColor4f(1.0, 1.0, 1.0, alpha_value)
         
         # テクスチャ付きの四角形を描画
         glBegin(GL_QUADS)
@@ -264,6 +291,9 @@ class TextElement(VideoBase):
         # テクスチャを無効にする
         glBindTexture(GL_TEXTURE_2D, 0)
         glDisable(GL_TEXTURE_2D)
+        
+        # 変換行列を復元
+        glPopMatrix()
     
     def __del__(self):
         """デストラクタでテクスチャを削除"""

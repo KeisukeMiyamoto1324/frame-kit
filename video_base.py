@@ -1,7 +1,8 @@
 import os
 import numpy as np
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from PIL import Image, ImageDraw, ImageFont
+from animation import Animation, AnimationManager, RepeatingAnimation
 
 
 class VideoBase:
@@ -36,12 +37,28 @@ class VideoBase:
         
         # テクスチャ再作成フラグ
         self.texture_created = False
+        
+        # アニメーション関連
+        self.animation_manager = AnimationManager()
+        self.base_x = 0.0  # アニメーション前の基本位置
+        self.base_y = 0.0
+        self.base_alpha = 255  # アニメーション前の基本透明度
+        self.base_scale = 1.0  # アニメーション前の基本スケール
+        self.rotation = 0.0  # 回転角度（度）
+        self.scale = 1.0  # スケール値
     
     def position(self, x: float, y: float):
         """位置を設定"""
         self.x = x
         self.y = y
+        self.base_x = x  # アニメーション用の基本位置も更新
+        self.base_y = y
         return self
+    
+    def get_actual_render_position(self):
+        """レンダリング時の実際の位置とサイズを取得（スケール等を考慮）"""
+        # サブクラスでオーバーライドされる
+        return self.x, self.y, getattr(self, 'width', 0), getattr(self, 'height', 0)
     
     def set_duration(self, duration: float):
         """表示時間を設定"""
@@ -250,10 +267,198 @@ class VideoBase:
         
         return img
 
+    def animate(self, property_name: str, animation: Animation):
+        """プロパティにアニメーションを追加"""
+        # アニメーションの開始時刻を要素の開始時刻に対して相対的に設定
+        animation.start_time += self.start_time
+        self.animation_manager.add_animation(property_name, animation)
+        return self
+    
+    def animate_position(self, animation: Animation, axis: str = 'both'):
+        """位置のアニメーション（便利メソッド）
+        
+        Args:
+            animation: 使用するアニメーション
+            axis: アニメーションする軸 ('x', 'y', 'both')
+        """
+        if axis in ['x', 'both']:
+            self.animate('x', animation)
+        if axis in ['y', 'both']:
+            self.animate('y', animation) 
+        return self
+    
+    def animate_fade(self, animation: Animation):
+        """透明度のアニメーション（便利メソッド）"""
+        self.animate('alpha', animation)
+        return self
+    
+    def animate_scale(self, animation: Animation):
+        """スケールのアニメーション（便利メソッド）"""
+        self.animate('scale', animation)
+        return self
+    
+    def animate_rotation(self, animation: Animation):
+        """回転のアニメーション（便利メソッド）"""
+        self.animate('rotation', animation)
+        return self
+    
+    def animate_repeating(self, property_name: str, animation: Animation, 
+                         repeat_count: int = -1, repeat_delay: float = 0.0, 
+                         repeat_mode: str = 'restart'):
+        """プロパティに繰り返しアニメーションを追加
+        
+        Args:
+            property_name: アニメーションするプロパティ名
+            animation: 繰り返すベースアニメーション
+            repeat_count: 繰り返し回数（-1で無限）
+            repeat_delay: 各繰り返し間の遅延時間（秒）
+            repeat_mode: 繰り返しモード ('restart', 'reverse', 'continue')
+        """
+        repeating_animation = RepeatingAnimation(
+            base_animation=animation,
+            repeat_count=repeat_count,
+            repeat_delay=repeat_delay,
+            repeat_mode=repeat_mode
+        )
+        repeating_animation.start_time += self.start_time
+        self.animation_manager.add_animation(property_name, repeating_animation)
+        return self
+    
+    def animate_until_scene_end(self, property_name: str, animation: Animation, 
+                               repeat_delay: float = 0.0, repeat_mode: str = 'restart',
+                               scene_duration: float = None):
+        """プロパティにシーン終了まで繰り返すアニメーションを追加
+        
+        Args:
+            property_name: アニメーションするプロパティ名
+            animation: 繰り返すベースアニメーション
+            repeat_delay: 各繰り返し間の遅延時間（秒）
+            repeat_mode: 繰り返しモード ('restart', 'reverse', 'continue')
+            scene_duration: シーンの継続時間（Noneの場合は自動検出を試行）
+        """
+        # シーン継続時間を推定（実際の実装では親シーンから取得すべき）
+        if scene_duration is None:
+            scene_duration = self.duration  # 暫定的に要素の継続時間を使用
+        
+        repeating_animation = RepeatingAnimation(
+            base_animation=animation,
+            repeat_count=-1,
+            repeat_delay=repeat_delay,
+            repeat_mode=repeat_mode,
+            until_scene_end=True,
+            scene_duration=scene_duration
+        )
+        repeating_animation.start_time += self.start_time
+        self.animation_manager.add_animation(property_name, repeating_animation)
+        return self
+    
+    # 繰り返しアニメーション用の便利メソッド
+    def animate_repeating_scale(self, animation: Animation, repeat_count: int = -1, 
+                               repeat_delay: float = 0.0, repeat_mode: str = 'restart'):
+        """スケールの繰り返しアニメーション（便利メソッド）"""
+        return self.animate_repeating('scale', animation, repeat_count, repeat_delay, repeat_mode)
+    
+    def animate_repeating_position(self, animation: Animation, axis: str = 'both',
+                                  repeat_count: int = -1, repeat_delay: float = 0.0, 
+                                  repeat_mode: str = 'restart'):
+        """位置の繰り返しアニメーション（便利メソッド）"""
+        if axis in ['x', 'both']:
+            self.animate_repeating('x', animation, repeat_count, repeat_delay, repeat_mode)
+        if axis in ['y', 'both']:
+            self.animate_repeating('y', animation, repeat_count, repeat_delay, repeat_mode)
+        return self
+    
+    def animate_repeating_rotation(self, animation: Animation, repeat_count: int = -1,
+                                  repeat_delay: float = 0.0, repeat_mode: str = 'restart'):
+        """回転の繰り返しアニメーション（便利メソッド）"""
+        return self.animate_repeating('rotation', animation, repeat_count, repeat_delay, repeat_mode)
+    
+    def animate_pulse_until_end(self, from_scale: float = 1.0, to_scale: float = 1.2,
+                               duration: float = 1.0, repeat_delay: float = 0.0,
+                               scene_duration: float = None):
+        """パルス（鼓動）アニメーションをシーン終了まで繰り返す（便利メソッド）"""
+        from animation import AnimationPresets
+        pulse_animation = AnimationPresets.pulse(from_scale, to_scale, duration)
+        return self.animate_until_scene_end('scale', pulse_animation, repeat_delay, 
+                                          'restart', scene_duration)
+    
+    def animate_breathing_until_end(self, from_scale: float = 1.0, to_scale: float = 1.1,
+                                   duration: float = 3.0, repeat_delay: float = 0.0,
+                                   scene_duration: float = None):
+        """呼吸のような拡大縮小をシーン終了まで繰り返す（便利メソッド）"""
+        from animation import AnimationPresets
+        breathing_animation = AnimationPresets.breathing(from_scale, to_scale, duration)
+        return self.animate_until_scene_end('scale', breathing_animation, repeat_delay,
+                                          'restart', scene_duration)
+    
+    def get_animated_properties(self, time: float):
+        """現在時刻でのアニメーション適用後のプロパティを取得"""
+        properties = {}
+        
+        # 位置のアニメーション
+        animated_x = self.animation_manager.get_animated_value('x', time, self.base_x)
+        animated_y = self.animation_manager.get_animated_value('y', time, self.base_y)
+        if animated_x is not None:
+            properties['x'] = animated_x
+        if animated_y is not None:
+            properties['y'] = animated_y
+            
+        # 透明度のアニメーション
+        animated_alpha = self.animation_manager.get_animated_value('alpha', time, self.base_alpha)
+        if animated_alpha is not None:
+            properties['alpha'] = max(0, min(255, int(animated_alpha)))
+            
+        # スケールのアニメーション
+        animated_scale = self.animation_manager.get_animated_value('scale', time, self.base_scale)
+        if animated_scale is not None:
+            properties['scale'] = max(0.0, animated_scale)
+            
+        # 回転のアニメーション
+        animated_rotation = self.animation_manager.get_animated_value('rotation', time, self.rotation)
+        if animated_rotation is not None:
+            properties['rotation'] = animated_rotation
+            
+        # 色のアニメーション（背景色）
+        if hasattr(self, 'color') and self.animation_manager.get_animated_value('color', time) is not None:
+            animated_color = self.animation_manager.get_animated_value('color', time, getattr(self, 'color', (255, 255, 255)))
+            properties['color'] = animated_color
+            
+        # 角丸半径のアニメーション
+        animated_corner_radius = self.animation_manager.get_animated_value('corner_radius', time, self.corner_radius)
+        if animated_corner_radius is not None:
+            properties['corner_radius'] = max(0, animated_corner_radius)
+            
+        return properties
+    
+    def update_animated_properties(self, time: float):
+        """アニメーションプロパティを現在の状態に適用"""
+        animated_props = self.get_animated_properties(time)
+        
+        if 'x' in animated_props:
+            self.x = animated_props['x']
+        if 'y' in animated_props:
+            self.y = animated_props['y']
+        if 'alpha' in animated_props:
+            self.background_alpha = animated_props['alpha']
+        if 'scale' in animated_props:
+            self.scale = animated_props['scale']
+        if 'rotation' in animated_props:
+            self.rotation = animated_props['rotation']
+        if 'corner_radius' in animated_props:
+            self.corner_radius = animated_props['corner_radius']
+    
+    def has_animations(self, time: float = None) -> bool:
+        """アニメーションを持っているかチェック"""
+        if time is not None:
+            return self.animation_manager.has_active_animations(time)
+        return len(self.animation_manager.animations) > 0
+
     def calculate_size(self):
         """ボックスサイズを事前計算（サブクラスでオーバーライド）"""
         pass
 
     def render(self, time: float):
         """要素をレンダリング（サブクラスで実装）"""
+        # アニメーションプロパティを適用
+        self.update_animated_properties(time)
         pass
