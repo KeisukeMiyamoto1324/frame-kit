@@ -129,6 +129,31 @@ class VideoBase:
                                  outline=border_color, width=1)
         
         return canvas
+    
+    def _apply_corner_radius_to_image(self, img: Image.Image) -> Image.Image:
+        """画像コンテンツ自体に角丸クリッピングを適用"""
+        if self.corner_radius <= 0:
+            return img
+        
+        # 画像サイズを取得
+        width, height = img.size
+        
+        # 角丸半径がサイズより大きい場合は調整
+        radius = min(self.corner_radius, width // 2, height // 2)
+        
+        # 角丸マスクを作成
+        mask = Image.new('L', (width, height), 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rounded_rectangle([0, 0, width, height], radius=radius, fill=255)
+        
+        # RGBAモードに変換
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
+        
+        # マスクを適用して角丸にクリッピング
+        img.putalpha(mask)
+        
+        return img
 
     def render(self, time: float):
         """要素をレンダリング（サブクラスで実装）"""

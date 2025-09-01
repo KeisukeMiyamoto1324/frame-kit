@@ -107,8 +107,11 @@ class VideoElement(VideoBase):
         alpha = np.full((frame.shape[0], frame.shape[1], 1), 255, dtype=np.uint8)
         frame = np.concatenate([frame, alpha], axis=2)
         
-        # Convert to PIL Image for border/background processing
+        # Convert to PIL Image for corner radius and border/background processing
         pil_frame = Image.fromarray(frame, 'RGBA')
+        
+        # Apply corner radius clipping to video frame
+        pil_frame = self._apply_corner_radius_to_image(pil_frame)
         
         # Apply border and background
         pil_frame = self._apply_border_and_background_to_image(pil_frame)

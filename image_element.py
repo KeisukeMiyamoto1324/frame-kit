@@ -46,6 +46,9 @@ class ImageElement(VideoBase):
                 new_height = int(self.original_height * self.scale)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
+            # Apply corner radius clipping to image content
+            img = self._apply_corner_radius_to_image(img)
+            
             # Apply border and background
             img = self._apply_border_and_background_to_image(img)
             
