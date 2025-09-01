@@ -16,29 +16,22 @@ def test_video_audio():
     # Create scene
     scene = Scene()
     
-    # Add a test video with audio (make sure this file exists)
+    # Add a test video with audio and audio control features
     video_path = "sample_asset/sample1.mp4"
-    video = (
+    
+    # Add another video with different audio settings
+    video2 = (
         VideoElement(video_path)
-        .position(100, 100)
-        .set_scale(0.5)
-        .set_border((255, 255, 255))
-        .set_corner_radius(15)
-        .start_at(0)
-        .set_duration(10)  # 10 seconds for testing
+        .position(600, 300)
+        .set_scale(0.3)
+        .set_border((0, 255, 0))
+        .set_corner_radius(25)
+        .set_volume(0.1)  # Set volume to 50%
+        # .mute_audio()  # Start muted
+        .start_at(5)
+        .set_duration(5)
     )
-    scene.add(video)
-
-    # Add title text
-    title = (
-        TextElement("Video Audio Test", size=80, color=(255, 255, 255))
-        .set_background((0, 0, 0), alpha=180, padding=20)
-        .set_corner_radius(10)
-        .position(960 - 200, 50)  # Center horizontally
-        .start_at(0)
-        .set_duration(3)
-    )
-    scene.add(title)
+    scene.add(video2)
     
     # Add the scene to master scene
     master_scene.add(scene)

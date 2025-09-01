@@ -24,10 +24,14 @@ class AudioElement(VideoBase):
         super().__init__()
         self.audio_path = audio_path
         self.volume = volume
+        self.original_volume = volume
         self.sample_rate = 44100
         self.total_samples = 0
         self.channels = 2
         self.current_audio_data = None
+        self.fade_in_duration = 0.0
+        self.fade_out_duration = 0.0
+        self.is_muted = False
         self._load_audio_info()
         # 初期化時にサイズを計算（オーディオは視覚的要素がないため0）
         self.calculate_size()
@@ -72,7 +76,50 @@ class AudioElement(VideoBase):
     def set_volume(self, volume: float):
         """Set audio volume (0.0 to 1.0)"""
         self.volume = max(0.0, min(1.0, volume))
+        self.original_volume = self.volume
         return self
+    
+    def set_fade_in(self, duration: float):
+        """Set fade in duration in seconds"""
+        self.fade_in_duration = max(0.0, duration)
+        return self
+    
+    def set_fade_out(self, duration: float):
+        """Set fade out duration in seconds"""
+        self.fade_out_duration = max(0.0, duration)
+        return self
+    
+    def mute(self):
+        """Mute the audio"""
+        self.is_muted = True
+        return self
+    
+    def unmute(self):
+        """Unmute the audio"""
+        self.is_muted = False
+        return self
+    
+    def get_effective_volume(self, audio_time: float):
+        """Calculate effective volume considering fade in/out and mute"""
+        if self.is_muted:
+            return 0.0
+        
+        effective_volume = self.volume
+        
+        # Apply fade in
+        if self.fade_in_duration > 0 and audio_time < self.fade_in_duration:
+            fade_in_factor = audio_time / self.fade_in_duration
+            effective_volume *= fade_in_factor
+        
+        # Apply fade out
+        if self.fade_out_duration > 0:
+            fade_out_start = self.duration - self.fade_out_duration
+            if audio_time > fade_out_start:
+                remaining_time = self.duration - audio_time
+                fade_out_factor = remaining_time / self.fade_out_duration
+                effective_volume *= fade_out_factor
+        
+        return max(0.0, min(1.0, effective_volume))
     
     def _get_audio_at_time(self, audio_time: float):
         """Get audio data at specific time"""
@@ -102,13 +149,20 @@ class AudioElement(VideoBase):
         # Calculate audio time (time within the audio clip)
         audio_time = time - self.start_time
         
+        # Calculate effective volume with fade effects
+        effective_volume = self.get_effective_volume(audio_time)
+        
         # Return audio metadata for external processing
         return {
             'audio_path': self.audio_path,
             'audio_time': audio_time,
-            'volume': self.volume,
+            'volume': effective_volume,
+            'original_volume': self.original_volume,
             'start_time': self.start_time,
-            'duration': self.duration
+            'duration': self.duration,
+            'is_muted': self.is_muted,
+            'fade_in_duration': self.fade_in_duration,
+            'fade_out_duration': self.fade_out_duration
         }
     
     def calculate_size(self):

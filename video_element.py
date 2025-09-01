@@ -26,8 +26,9 @@ class VideoElement(VideoBase):
         self._create_video_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
-        # オーディオ要素を作成
-        self._create_audio_element()
+        # オーディオ要素を作成（遅延作成）
+        self.audio_element = None
+        self._audio_element_created = False
     
     def _create_video_texture(self):
         """Initialize video texture creation"""
@@ -74,15 +75,27 @@ class VideoElement(VideoBase):
     
     def _create_audio_element(self):
         """Create audio element from video file"""
+        if self._audio_element_created:
+            return
+            
         try:
             # VideoElementと同じタイミングでオーディオを再生するようにAudioElementを作成
             self.audio_element = AudioElement(self.video_path, volume=1.0)
             # VideoElementと同じstart_timeとdurationを設定
-            self.audio_element.start_time = self.start_time
-            self.audio_element.duration = self.duration
+            self._sync_audio_timing()
+            self._audio_element_created = True
+            print(f"Audio element created for video: {self.video_path}")
         except Exception as e:
             print(f"Warning: Could not create audio element for {self.video_path}: {e}")
             self.audio_element = None
+    
+    def _sync_audio_timing(self):
+        """Synchronize audio element timing with video element"""
+        if self.audio_element:
+            print(f"Syncing audio timing: start_time={self.start_time}, duration={self.duration}")
+            self.audio_element.start_at(self.start_time)
+            self.audio_element.set_duration(self.duration)
+            print(f"Audio element timing set: start_time={self.audio_element.start_time}, duration={self.audio_element.duration}")
     
     def get_audio_element(self):
         """Get the associated audio element"""
@@ -176,16 +189,63 @@ class VideoElement(VideoBase):
     def start_at(self, start_time: float):
         """Set start time and update audio element timing"""
         super().start_at(start_time)
-        if self.audio_element:
-            self.audio_element.start_at(start_time)
+        self._ensure_audio_element()
+        self._sync_audio_timing()
         return self
     
     def set_duration(self, duration: float):
         """Set duration and update audio element timing"""
         super().set_duration(duration)
-        if self.audio_element:
-            self.audio_element.set_duration(duration)
+        self._ensure_audio_element()
+        self._sync_audio_timing()
         return self
+    
+    def _ensure_audio_element(self):
+        """Ensure audio element is created before using it"""
+        if not self._audio_element_created:
+            self._create_audio_element()
+    
+    def set_volume(self, volume: float):
+        """Set audio volume (0.0 to 1.0)"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            self.audio_element.set_volume(volume)
+        return self
+    
+    def set_audio_fade_in(self, duration: float):
+        """Set audio fade in duration"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            self.audio_element.set_fade_in(duration)
+        return self
+    
+    def set_audio_fade_out(self, duration: float):
+        """Set audio fade out duration"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            self.audio_element.set_fade_out(duration)
+        return self
+    
+    def mute_audio(self):
+        """Mute video audio"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            self.audio_element.mute()
+        return self
+    
+    def unmute_audio(self):
+        """Unmute video audio"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            self.audio_element.unmute()
+        return self
+    
+    def get_audio_volume(self):
+        """Get current audio volume"""
+        self._ensure_audio_element()
+        if self.audio_element:
+            return self.audio_element.volume
+        return 0.0
     
     def render(self, time: float):
         """Render video frame"""

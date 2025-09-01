@@ -136,13 +136,14 @@ class MasterScene:
         # 複数のオーディオファイルを処理するためのコマンド構築
         cmd = ['ffmpeg', '-y', '-i', video_path]
         
-        # 存在するオーディオファイルのみを追加
+        # 存在するオーディオファイルのみを追加（タイミング情報付き）
         valid_audio_files = []
         for audio_element in self.audio_elements:
             if os.path.exists(audio_element.audio_path):
-                cmd.extend(['-i', audio_element.audio_path])
+                # オーディオファイルにタイミング情報を適用してFFmpegに渡す
+                cmd.extend(['-itsoffset', str(audio_element.start_time), '-i', audio_element.audio_path])
                 valid_audio_files.append(audio_element)
-                print(f"Adding audio: {audio_element.audio_path}")
+                print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
             else:
                 print(f"Warning: Audio file not found, skipping: {audio_element.audio_path}")
         
@@ -150,17 +151,49 @@ class MasterScene:
             print("No valid audio files found, keeping video-only output")
             return video_path
         
-        # 複雑なオーディオミキシングを避けて、最初のオーディオファイルのみ使用
+        # オーディオファイルのミキシング処理
         if len(valid_audio_files) == 1:
-            cmd.extend(['-c:v', 'copy', '-c:a', 'aac', '-shortest', final_output])
+            # 単一オーディオファイルの場合、volume調整とduration制限を適用
+            audio_element = valid_audio_files[0]
+            volume = audio_element.volume if hasattr(audio_element, 'volume') else 1.0
+            is_muted = getattr(audio_element, 'is_muted', False)
+            
+            print(f"Single audio element: volume={volume}, is_muted={is_muted}")
+            
+            # ミュート状態の場合は音量を0にする
+            if is_muted:
+                volume = 0.0
+            
+            # オーディオフィルターでボリューム調整
+            cmd.extend(['-filter:a', f'volume={volume}', '-c:v', 'copy', '-c:a', 'aac', 
+                       '-t', str(self.total_duration), final_output])
         else:
-            # 複数ファイルの場合は警告を出して最初のファイルのみ使用
-            print(f"Warning: Multiple audio files found. Using only the first one: {valid_audio_files[0].audio_path}")
-            cmd = ['ffmpeg', '-y', '-i', video_path, '-i', valid_audio_files[0].audio_path, 
-                   '-c:v', 'copy', '-c:a', 'aac', '-shortest', final_output]
+            # 複数のオーディオファイルをミキシング
+            print(f"Mixing {len(valid_audio_files)} audio tracks...")
+            
+            # オーディオストリームをミキシングするfilter_complexを構築
+            audio_inputs = []
+            for i, audio_element in enumerate(valid_audio_files, 1):  # index 1から開始（index 0はビデオ）
+                # 各オーディオストリームに対してvolume調整とduration制限を適用
+                volume = audio_element.volume if hasattr(audio_element, 'volume') else 1.0
+                print(f"Audio element {i}: volume={volume}, is_muted={getattr(audio_element, 'is_muted', False)}")
+                
+                # ミュート状態の場合は音量を0にする
+                if getattr(audio_element, 'is_muted', False):
+                    volume = 0.0
+                
+                audio_inputs.append(f"[{i}:a]volume={volume}[a{i}]")
+            
+            # 全てのオーディオストリームをミキシング
+            mix_inputs = '+'.join([f"[a{i}]" for i in range(1, len(valid_audio_files) + 1)])
+            filter_complex = ';'.join(audio_inputs) + f";{mix_inputs}amix=inputs={len(valid_audio_files)}[aout]"
+            
+            cmd.extend(['-filter_complex', filter_complex, '-map', '0:v', '-map', '[aout]', 
+                       '-c:v', 'copy', '-c:a', 'aac', '-t', str(self.total_duration), final_output])
         
         try:
             print("Mixing audio with video using FFmpeg...")
+            print(f"FFmpeg command: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0:
                 print(f"Audio mixing completed: {final_output}")
