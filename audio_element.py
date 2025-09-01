@@ -1,8 +1,21 @@
 import os
-import cv2
 import numpy as np
 from typing import Optional
 from video_base import VideoBase
+
+# オーディオライブラリのインポートを試行
+try:
+    import mutagen
+    from mutagen import File as MutagenFile
+    HAS_MUTAGEN = True
+except ImportError:
+    HAS_MUTAGEN = False
+
+try:
+    import librosa
+    HAS_LIBROSA = True
+except ImportError:
+    HAS_LIBROSA = False
 
 
 class AudioElement(VideoBase):
@@ -11,7 +24,6 @@ class AudioElement(VideoBase):
         super().__init__()
         self.audio_path = audio_path
         self.volume = volume
-        self.audio_capture = None
         self.sample_rate = 44100
         self.total_samples = 0
         self.channels = 2
@@ -27,26 +39,35 @@ class AudioElement(VideoBase):
             return
         
         try:
-            # OpenCVを使ってオーディオ情報を取得
-            self.audio_capture = cv2.VideoCapture(self.audio_path)
+            # mutagenを使ってオーディオ情報を取得
+            if HAS_MUTAGEN:
+                audio_file = MutagenFile(self.audio_path)
+                if audio_file is not None and hasattr(audio_file, 'info'):
+                    self.duration = float(audio_file.info.length)
+                    print(f"Audio loaded (mutagen): {self.audio_path}, duration: {self.duration:.2f}s")
+                    return
             
-            if not self.audio_capture.isOpened():
-                print(f"Error: Cannot open audio file: {self.audio_path}")
-                return
+            # librosaを使ってオーディオ情報を取得
+            if HAS_LIBROSA:
+                try:
+                    y, sr = librosa.load(self.audio_path, sr=None)
+                    self.duration = len(y) / sr
+                    self.sample_rate = sr
+                    print(f"Audio loaded (librosa): {self.audio_path}, duration: {self.duration:.2f}s, sr: {sr}")
+                    return
+                except Exception as librosa_error:
+                    print(f"Librosa failed: {librosa_error}")
             
-            # オーディオプロパティを取得
-            fps = self.audio_capture.get(cv2.CAP_PROP_FPS)
-            total_frames = int(self.audio_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            # オーディオの長さを計算
-            if fps > 0 and total_frames > 0:
-                audio_duration = total_frames / fps
-                self.duration = audio_duration
-            
-            print(f"Audio loaded: {self.audio_path}, duration: {self.duration:.2f}s")
+            # フォールバック: ファイル名からの推定またはデフォルト値
+            print(f"Warning: Could not determine audio duration for {self.audio_path}")
+            print("Install 'mutagen' or 'librosa' for proper audio file support:")
+            print("  pip3 install mutagen")
+            print("  pip3 install librosa")
+            self.duration = 10.0  # デフォルト値
             
         except Exception as e:
             print(f"Error loading audio info {self.audio_path}: {e}")
+            self.duration = 10.0  # デフォルト値
     
     def set_volume(self, volume: float):
         """Set audio volume (0.0 to 1.0)"""
@@ -55,9 +76,6 @@ class AudioElement(VideoBase):
     
     def _get_audio_at_time(self, audio_time: float):
         """Get audio data at specific time"""
-        if self.audio_capture is None or not self.audio_capture.isOpened():
-            return None
-        
         # オーディオの場合、実際の音声データの処理は
         # 外部のオーディオライブラリ（pygame, pyaudio等）に依存するため
         # ここではプレースホルダーとして実装
@@ -66,9 +84,6 @@ class AudioElement(VideoBase):
     def render(self, time: float):
         """Render audio (no visual output for audio elements)"""
         if not self.is_visible_at(time):
-            return
-        
-        if self.audio_capture is None:
             return
         
         # Calculate audio time (time within the audio clip)
@@ -83,8 +98,6 @@ class AudioElement(VideoBase):
         if not self.is_visible_at(time):
             return None
         
-        if self.audio_capture is None:
-            return None
         
         # Calculate audio time (time within the audio clip)
         audio_time = time - self.start_time
@@ -106,5 +119,5 @@ class AudioElement(VideoBase):
     
     def __del__(self):
         """Destructor to clean up resources"""
-        if self.audio_capture:
-            self.audio_capture.release()
+        # オーディオ要素用のクリーンアップ
+        pass

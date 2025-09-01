@@ -35,32 +35,12 @@ def main():
     )
     scene.add(text)
     
-    # Test audio element creation (even without actual audio file)
-    try:
-        # Create audio element (will warn about missing file but won't crash)
-        audio = (
-            AudioElement("sample_asset/sample.mp3")
-                .set_volume(0.8)
-                .start_at(0)
-                # Duration will be set automatically from audio file
-        )
-        scene.add(audio)
-        
-        print(f"Audio element created:")
-        print(f"- Path: {audio.audio_path}")
-        print(f"- Volume: {audio.volume}")
-        print(f"- Duration: {audio.duration}")
-        print(f"- Start time: {audio.start_time}")
-        print(f"- Size: {audio.width}x{audio.height} (should be 0x0 for audio)")
-        
-        # Test getting audio data at different times
-        for time in [0.5, 2.0, 5.0]:
-            audio_data = audio.get_audio_data_at_time(time)
-            if audio_data:
-                print(f"Audio data at {time}s: {audio_data}")
-        
-    except Exception as e:
-        print(f"Error testing audio element: {e}")
+    audio = (
+        AudioElement("sample_asset/sample.mp3")
+            .start_at(0)
+            # Duration will be set automatically from audio file
+    )
+    scene.add(audio)
     
     # Add scene to master scene
     master_scene.add(scene)

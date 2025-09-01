@@ -60,6 +60,12 @@ def main():
     title.position(title_x, title_y)
     scene.add(title)
     
+    video = (
+        VideoElement("sample_asset/sample1.mp4")
+            .set_scale(0.5)
+    )
+    scene.add(video)
+    
     # Series of educational subtitles with proper line breaks
     subtitles = [
         ("Welcome to today's lesson about\nthe fascinating history of computer science!", 5, 4),
