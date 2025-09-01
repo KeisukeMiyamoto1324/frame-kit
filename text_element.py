@@ -23,6 +23,8 @@ class TextElement(VideoBase):
         self.line_spacing = 0
         
         self._create_text_texture()
+        # 初期化時にサイズを計算
+        self.calculate_size()
     
     
     def set_alignment(self, alignment: str):
@@ -31,6 +33,8 @@ class TextElement(VideoBase):
             self.alignment = alignment
             # テクスチャを再作成する必要がある
             self.texture_created = False
+            # サイズを再計算
+            self.calculate_size()
         return self
     
     def set_line_spacing(self, spacing: int):
@@ -38,6 +42,8 @@ class TextElement(VideoBase):
         self.line_spacing = spacing
         # テクスチャを再作成する必要がある
         self.texture_created = False
+        # サイズを再計算
+        self.calculate_size()
         return self
     
     def _create_text_texture(self):
@@ -137,6 +143,10 @@ class TextElement(VideoBase):
         self.texture_width = img.size[0]
         self.texture_height = img.size[1]
         
+        # ボックスサイズを更新（背景・枠線を含む最終サイズ）
+        self.width = self.texture_width
+        self.height = self.texture_height
+        
         # 画像をNumPy配列に変換
         img_data = np.array(img)
         
@@ -155,6 +165,63 @@ class TextElement(VideoBase):
         
         glBindTexture(GL_TEXTURE_2D, 0)
         self.texture_created = True
+
+    def calculate_size(self):
+        """テキストのボックスサイズを事前計算"""
+        try:
+            # フォントを読み込み
+            if self.font_path and os.path.exists(self.font_path):
+                font = ImageFont.truetype(self.font_path, self.size)
+            else:
+                try:
+                    font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", self.size)
+                except:
+                    try:
+                        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", self.size)
+                    except:
+                        font = ImageFont.load_default()
+        except:
+            font = ImageFont.load_default()
+        
+        # 複数行テキストを分割
+        lines = self.text.split('\n')
+        
+        # 各行のサイズを測定
+        dummy_img = Image.new('RGBA', (1, 1))
+        dummy_draw = ImageDraw.Draw(dummy_img)
+        
+        max_width = 0
+        total_height = 0
+        
+        for i, line in enumerate(lines):
+            if line.strip():  # 空行でない場合
+                bbox = dummy_draw.textbbox((0, 0), line, font=font)
+                line_width = bbox[2] - bbox[0]
+                line_height = bbox[3] - bbox[1]
+            else:  # 空行の場合
+                line_width = 0
+                line_height = font.getmetrics()[0]  # ascent only
+            
+            max_width = max(max_width, line_width)
+            total_height += line_height
+            if i < len(lines) - 1:  # 最後の行でなければ行間を追加
+                total_height += self.line_spacing
+        
+        # コンテンツサイズ
+        content_width = max(max_width, 1)
+        content_height = max(total_height, 1)
+        
+        # パディングを含むキャンバスサイズを計算
+        canvas_width = content_width + self.padding['left'] + self.padding['right']
+        canvas_height = content_height + self.padding['top'] + self.padding['bottom']
+        
+        # 最小サイズを保証
+        canvas_width = max(canvas_width, 1)
+        canvas_height = max(canvas_height, 1)
+        
+        # ボックスサイズを更新
+        self.width = canvas_width
+        self.height = canvas_height
 
     def render(self, time: float):
         """テキストをレンダリング"""

@@ -25,6 +25,10 @@ class VideoBase:
         # 角丸設定
         self.corner_radius = 0
         
+        # ボックスサイズ（背景・枠線を含む最終的なサイズ）
+        self.width = 0
+        self.height = 0
+        
         # テクスチャ再作成フラグ
         self.texture_created = False
     
@@ -58,6 +62,8 @@ class VideoBase:
             self.padding.update(padding)
         # テクスチャを再作成する必要がある
         self.texture_created = False
+        # サイズを再計算
+        self.calculate_size()
         return self
     
     def set_border(self, color: Tuple[int, int, int], width: int = 1):
@@ -66,6 +72,8 @@ class VideoBase:
         self.border_width = width
         # テクスチャを再作成する必要がある
         self.texture_created = False
+        # サイズを再計算
+        self.calculate_size()
         return self
     
     def set_corner_radius(self, radius: float):
@@ -73,6 +81,8 @@ class VideoBase:
         self.corner_radius = max(0, radius)  # 負の値は0に補正
         # テクスチャを再作成する必要がある
         self.texture_created = False
+        # サイズを再計算（角丸は通常サイズに影響しないが、将来の拡張のため）
+        self.calculate_size()
         return self
 
     def _apply_border_and_background_to_image(self, img: Image.Image) -> Image.Image:
@@ -154,6 +164,10 @@ class VideoBase:
         img.putalpha(mask)
         
         return img
+
+    def calculate_size(self):
+        """ボックスサイズを事前計算（サブクラスでオーバーライド）"""
+        pass
 
     def render(self, time: float):
         """要素をレンダリング（サブクラスで実装）"""

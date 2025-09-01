@@ -17,6 +17,8 @@ class ImageElement(VideoBase):
         self.original_width = 0
         self.original_height = 0
         self._create_image_texture()
+        # 初期化時にサイズを計算
+        self.calculate_size()
     
     def _create_image_texture(self):
         """Initialize image texture creation"""
@@ -55,6 +57,10 @@ class ImageElement(VideoBase):
             # Update texture size
             self.texture_width, self.texture_height = img.size
             
+            # ボックスサイズを更新（背景・枠線を含む最終サイズ）
+            self.width = self.texture_width
+            self.height = self.texture_height
+            
             # Convert image to NumPy array and flip vertically for OpenGL
             img_data = np.array(img)
             img_data = np.flipud(img_data)  # Flip image vertically for OpenGL coordinate system
@@ -85,6 +91,8 @@ class ImageElement(VideoBase):
         # Need to recreate texture
         if self.texture_created:
             self.texture_created = False
+        # サイズを再計算
+        self.calculate_size()
         return self
     
     def render(self, time: float):
@@ -134,6 +142,40 @@ class ImageElement(VideoBase):
         
         # Restore OpenGL state
         glPopAttrib()
+
+    def calculate_size(self):
+        """画像のボックスサイズを事前計算"""
+        if not os.path.exists(self.image_path):
+            self.width = 0
+            self.height = 0
+            return
+        
+        try:
+            # 画像の情報だけを取得（実際の読み込みはしない）
+            from PIL import Image
+            with Image.open(self.image_path) as img:
+                original_width, original_height = img.size
+            
+            # スケールを適用
+            scaled_width = int(original_width * self.scale)
+            scaled_height = int(original_height * self.scale)
+            
+            # パディングを含むキャンバスサイズを計算
+            canvas_width = scaled_width + self.padding['left'] + self.padding['right']
+            canvas_height = scaled_height + self.padding['top'] + self.padding['bottom']
+            
+            # 最小サイズを保証
+            canvas_width = max(canvas_width, 1)
+            canvas_height = max(canvas_height, 1)
+            
+            # ボックスサイズを更新
+            self.width = canvas_width
+            self.height = canvas_height
+            
+        except Exception as e:
+            print(f"Error calculating image size {self.image_path}: {e}")
+            self.width = 0
+            self.height = 0
     
     def __del__(self):
         """Destructor to clean up texture"""

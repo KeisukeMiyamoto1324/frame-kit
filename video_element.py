@@ -22,6 +22,8 @@ class VideoElement(VideoBase):
         self.total_frames = 0
         self.current_frame_data = None
         self._create_video_texture()
+        # 初期化時にサイズを計算
+        self.calculate_size()
     
     def _create_video_texture(self):
         """Initialize video texture creation"""
@@ -116,6 +118,10 @@ class VideoElement(VideoBase):
         # Apply border and background
         pil_frame = self._apply_border_and_background_to_image(pil_frame)
         
+        # ボックスサイズを更新（背景・枠線を含む最終サイズ）
+        self.width = pil_frame.size[0]
+        self.height = pil_frame.size[1]
+        
         # Convert back to numpy array
         frame = np.array(pil_frame)
         
@@ -135,6 +141,11 @@ class VideoElement(VideoBase):
             # Add padding to texture dimensions
             self.texture_width = base_width + self.padding['left'] + self.padding['right']
             self.texture_height = base_height + self.padding['top'] + self.padding['bottom']
+            
+            # ボックスサイズも更新（推定値、実際は描画時に正確な値が設定される）
+            border_size = self.border_width * 2 if self.border_color else 0
+            self.width = self.texture_width + border_size
+            self.height = self.texture_height + border_size
         return self
     
     def render(self, time: float):
@@ -204,6 +215,29 @@ class VideoElement(VideoBase):
         
         # Restore OpenGL state
         glPopAttrib()
+
+    def calculate_size(self):
+        """動画のボックスサイズを事前計算"""
+        if not hasattr(self, 'original_width') or self.original_width == 0:
+            self.width = 0
+            self.height = 0
+            return
+        
+        # スケールを適用
+        scaled_width = int(self.original_width * self.scale)
+        scaled_height = int(self.original_height * self.scale)
+        
+        # パディングを含むキャンバスサイズを計算
+        canvas_width = scaled_width + self.padding['left'] + self.padding['right']
+        canvas_height = scaled_height + self.padding['top'] + self.padding['bottom']
+        
+        # 最小サイズを保証
+        canvas_width = max(canvas_width, 1)
+        canvas_height = max(canvas_height, 1)
+        
+        # ボックスサイズを更新
+        self.width = canvas_width
+        self.height = canvas_height
     
     def __del__(self):
         """Destructor to clean up resources"""
