@@ -26,10 +26,18 @@ source venv/bin/activate
 python main.py
 
 # Run telop features demo (text with backgrounds, borders, multiline)
-python test_telop_features.py
+python tests/test_telop_features.py
 
 # Run corner radius demo (rounded corners for all element types) 
-python test_corner_radius.py
+python tests/test_corner_radius.py
+
+# Test audio functionality (video with audio controls)
+python tests/test_video_audio.py
+
+# Test BGM (background music) looping functionality
+python tests/test_bgm_simple.py
+python tests/test_bgm_comprehensive.py
+python tests/test_bgm_termination.py
 ```
 
 ### Development Commands
@@ -49,6 +57,11 @@ Core libraries required for video generation:
 - **opencv-python**: Video encoding and file output
 - **pillow**: Text rendering and image manipulation
 - **tqdm**: Progress bars during rendering
+
+Audio processing dependencies:
+- **FFmpeg**: Required for audio mixing and video export with sound (install via `brew install ffmpeg` on macOS)
+- **mutagen**: Audio metadata extraction (optional: `pip3 install mutagen`)
+- **librosa**: Audio analysis and processing (optional: `pip3 install librosa`)
 
 ## Core Architecture
 
@@ -82,17 +95,29 @@ The architecture follows a clear inheritance structure where all visual elements
    - Supports video scaling and frame-accurate timing
    - Handles video format conversion (BGR to RGB) and alpha channel
    - Frame caching and OpenGL texture updates per render frame
+   - **Audio Integration**: Automatically creates associated AudioElement for video soundtrack
+   - **Audio Control**: Provides volume, fade, and mute controls for video audio
 
-5. **Scene** (`scene.py`): Container for multiple video elements
+5. **AudioElement** (`audio_element.py`): Audio playback component
+   - Handles standalone audio files (MP3, WAV, etc.) and video soundtracks
+   - Supports volume control, fade in/out, and mute/unmute functionality
+   - **BGM Mode**: `set_loop_until_scene_end(True)` loops audio until scene ends
+   - Uses mutagen or librosa for audio metadata extraction
+   - Integrates with FFmpeg for final audio mixing and synchronization
+
+6. **Scene** (`scene.py`): Container for multiple video elements
    - Groups elements and manages their collective timing
    - Handles scene-relative time calculations
    - Can be positioned at specific times in the timeline
+   - **BGM Management**: Automatically adjusts BGM duration to match scene length
 
-6. **MasterScene** (`master_scene.py`): Main video composition manager
+7. **MasterScene** (`master_scene.py`): Main video composition manager
    - Handles overall video settings (width, height, fps, output filename)
    - Manages pygame/OpenGL context and rendering pipeline
    - Exports final video using OpenCV with progress tracking
    - Hidden window rendering using SDL video driver settings
+   - **Audio Processing**: Integrates with FFmpeg for audio mixing and synchronization
+   - **Multi-track Audio**: Supports multiple audio sources with volume control and timing
 
 ### Project Structure
 
@@ -104,9 +129,11 @@ video-editer/
 ├── video_base.py        # Base class with positioning, timing, effects
 ├── text_element.py      # Text rendering with PIL/OpenGL integration
 ├── image_element.py     # Static image rendering with scaling
-├── video_element.py     # Frame-by-frame video clip rendering  
+├── video_element.py     # Frame-by-frame video clip rendering with audio
+├── audio_element.py     # Audio playback and BGM management  
 ├── scene.py             # Scene container for element grouping
 ├── master_scene.py      # OpenGL context and video export manager
+├── tests/               # Test files for various functionality
 ├── sample_asset/        # Sample media files (images, videos)
 ├── output/              # Generated MP4 video files
 ├── prompt.txt           # Development notes (Japanese)
@@ -174,15 +201,25 @@ image = (
         .start_at(0.5)
 )
 
-# Video element with border and corner radius
+# Video element with border, corner radius, and audio control
 video = (
     VideoElement("sample_asset/sample.mp4")
         .position(100, 100)
         .set_scale(0.3)
         .set_border((127, 127, 127))
         .set_corner_radius(25)
+        .set_volume(0.8)  # 80% volume
+        .set_audio_fade_in(2.0)  # 2 second fade in
         .set_duration(6)
         .start_at(1.5)
+)
+
+# Standalone audio element (BGM)
+bgm = (
+    AudioElement("sample_asset/background_music.mp3")
+        .set_volume(0.3)  # Lower volume for background
+        .set_loop_until_scene_end(True)  # Loop until scene ends
+        .start_at(0)
 )
 ```
 
@@ -217,6 +254,7 @@ video = VideoElement("sample_asset/video.mp4").position(100, 100).set_scale(0.3)
 scene.add(text)
 scene.add(image) 
 scene.add(video)
+scene.add(bgm)  # Add background music
 
 # Render video
 master_scene.add(scene)
@@ -259,6 +297,53 @@ for text, start_time, duration in subtitles:
     scene.add(subtitle)
 ```
 
+### BGM (Background Music) Implementation Pattern
+
+The codebase provides sophisticated BGM functionality that automatically handles audio looping and scene synchronization:
+
+```python
+# Basic BGM setup
+bgm = (
+    AudioElement("path/to/background_music.mp3")
+        .set_volume(0.3)  # Lower volume for background
+        .set_loop_until_scene_end(True)  # Enable BGM mode
+        .start_at(0)  # Start immediately
+)
+
+# BGM behavior:
+# - If BGM is shorter than scene: automatically loops until scene ends
+# - If BGM is longer than scene: cuts off when scene ends  
+# - BGM duration does NOT affect scene duration (other elements determine scene length)
+
+# Multiple audio sources example
+scene = Scene()
+scene.add(bgm)  # Background music
+
+# Video with its own audio (mixed with BGM)
+video = (
+    VideoElement("video_with_audio.mp4")
+        .set_volume(0.6)  # Video audio at 60%
+        .set_audio_fade_in(1.0)  # Smooth fade in
+        .start_at(0)
+        .set_duration(10)
+)
+scene.add(video)
+
+# The final output will mix:
+# - BGM looping at 30% volume
+# - Video audio at 60% volume with fade in
+# - Both synchronized using FFmpeg during final export
+```
+
+### Audio Integration Architecture
+
+The audio system uses a composition pattern where:
+
+1. **VideoElement** automatically creates an associated **AudioElement** for video soundtracks
+2. **Scene** manages BGM duration adjustments based on scene length
+3. **MasterScene** collects all audio sources and uses FFmpeg for final mixing
+4. **FFmpeg Integration**: Handles complex audio operations like looping (`-stream_loop -1`), volume control (`volume=N`), and timing (`-itsoffset`)
+
 ### Coordinate System
 
 - Uses pixel coordinates with origin at top-left (0, 0)
@@ -273,6 +358,13 @@ for text, start_time, duration in subtitles:
 - **Environment**: Suppresses pygame support prompts and pkg_resources warnings  
 - **Dependencies**: Always use `pip3` instead of `pip` for installations
 - **Japanese Support**: Codebase includes Japanese comments and development notes in `prompt.txt`
+
+### Audio Requirements
+
+- **FFmpeg**: Required for audio mixing. Install via `brew install ffmpeg` (macOS) or system package manager
+- **Audio Libraries**: Install `pip3 install mutagen` for audio metadata or `pip3 install librosa` for advanced audio processing
+- **Audio Formats**: Supports MP3, WAV, AAC, and other common formats through FFmpeg
+- **Video Audio**: Automatically extracts audio tracks from video files (MP4, MOV, etc.)
 
 ## Common Development Tasks
 
@@ -314,3 +406,19 @@ The codebase has a known issue with corner radius implementation for images and 
 - `.set_scale(scale)`: Resize video frames
 - `.set_border(color, width=1)`: Add border outline around video
 - Automatically handles video timing and frame extraction
+- **Audio Control Methods**:
+  - `.set_volume(volume)`: Set video audio volume (0.0-1.0+)
+  - `.set_audio_fade_in(duration)`: Set audio fade in duration in seconds
+  - `.set_audio_fade_out(duration)`: Set audio fade out duration in seconds
+  - `.mute_audio()`: Mute video audio
+  - `.unmute_audio()`: Unmute video audio
+  - `.get_audio_volume()`: Get current audio volume
+
+### AudioElement
+- Constructor: `AudioElement(audio_path, volume=1.0)`
+- `.set_volume(volume)`: Set audio volume (0.0-1.0+)
+- `.set_fade_in(duration)`: Set fade in duration in seconds
+- `.set_fade_out(duration)`: Set fade out duration in seconds
+- `.mute()` / `.unmute()`: Mute/unmute audio
+- **BGM Mode**: `.set_loop_until_scene_end(True)` - Loop audio until scene ends
+- Supports MP3, WAV, and other common audio formats

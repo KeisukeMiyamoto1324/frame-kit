@@ -1,19 +1,7 @@
-import os
-import warnings
-
-# Pygame関連の環境変数を事前に設定
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-
-# pkg_resources警告を抑制
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", message=".*pkg_resources.*")
-
 from master_scene import MasterScene
 from scene import Scene
 from text_element import TextElement
-from image_element import ImageElement
-from video_element import VideoElement
-
+from audio_element import AudioElement
 
 def create_subtitle(text, start_time, duration=4.0):
     """Create a centered subtitle at the bottom of the screen"""
@@ -34,81 +22,104 @@ def create_subtitle(text, start_time, duration=4.0):
     
     return subtitle
 
+def create_title(text, start_time, duration=3.0):
+    """Create a large centered title"""
+    title = (
+        TextElement(text, size=80, color=(255, 255, 255))
+            .set_background((30, 144, 255), alpha=200, padding={'top': 25, 'bottom': 25, 'left': 50, 'right': 50})
+            .set_corner_radius(20)
+            .set_alignment('center')
+            .start_at(start_time)
+            .set_duration(duration)
+    )
+    
+    title_x = (1920 - title.width) // 2
+    title_y = (1080 - title.height) // 2
+    title.position(title_x, title_y)
+    
+    return title
 
 def main():
-    """Yukkuri-style educational video about Computer Science History"""
-    # Create master scene - 2 minute video at 30fps
+    # Create master scene with 1920x1080 resolution at 30fps
     master_scene = MasterScene(width=1920, height=1080, fps=30)
     master_scene.set_output("computer_science_history.mp4")
     
     # Create main scene
     scene = Scene()
     
-    # Title sequence
-    title = (
-        TextElement("The History of\nComputer Science", size=80, color=(255, 255, 255))
-            .set_background((20, 50, 100), alpha=200, padding=40)
-            .set_border((255, 255, 255), width=3)
-            .set_corner_radius(20)
-            .set_alignment('center')
-            .set_line_spacing(10)
-            .set_duration(5)
+    # Add background music
+    bgm = (
+        AudioElement("sample_asset/sample-bgm.mp3")
+            .set_volume(0.25)  # Lower volume for background
+            .set_loop_until_scene_end(True)  # Loop until scene ends
             .start_at(0)
     )
-    title_x = (1920 - title.width) // 2
-    title_y = (1080 - title.height) // 2
-    title.position(title_x, title_y)
-    scene.add(title)
+    scene.add(bgm)
     
-    video = (
-        VideoElement("sample_asset/sample1.mp4")
-            .set_scale(0.5)
-    )
-    scene.add(video)
+    # Title sequence
+    main_title = create_title("The History of Computer Science", 1, 4)
+    scene.add(main_title)
     
-    # Series of educational subtitles with proper line breaks
+    # Subtitle sequence with computer science history
     subtitles = [
-        ("Welcome to today's lesson about\nthe fascinating history of computer science!", 5, 4),
-        ("Computer science didn't start with modern computers.\nIt began with ancient mathematical concepts\nand calculation methods.", 9, 5),
-        ("In the 1940s, pioneers like Alan Turing\nand John von Neumann laid the foundations\nfor modern computing theory.", 14, 5),
-        ("Turing's work on computability and\nthe famous Turing Machine concept\nrevolutionized our understanding of computation.", 19, 6),
-        ("The 1950s saw the birth of programming languages.\nFORTRAN, created by John Backus at IBM,\nwas one of the first high-level languages.", 25, 6),
-        ("In 1969, ARPANET was created,\nconnecting computers across universities.\nThis became the foundation of the Internet.", 31, 6),
-        ("The 1970s brought personal computing closer.\nCompanies like Apple and Microsoft\nstarted in garages and basements.", 37, 5),
-        ("Object-oriented programming emerged\nwith languages like Smalltalk and C++,\nchanging how we structure code.", 42, 5),
-        ("The 1990s introduced the World Wide Web,\ncreated by Tim Berners-Lee at CERN.\nThis transformed global communication.", 47, 6),
-        ("Today, computer science encompasses\nartificial intelligence, quantum computing,\nand distributed systems.", 53, 5),
-        ("Machine learning and neural networks,\nonce theoretical concepts,\nnow power everyday applications.", 58, 5),
-        ("From simple calculations to complex AI,\ncomputer science continues to evolve\nand shape our future.", 63, 5),
-        ("The journey from mechanical calculators\nto quantum computers shows\nhuman ingenuity and progress.", 68, 5),
-        ("Understanding this history helps us\nappreciate modern technology\nand envision future possibilities.", 73, 5),
-        ("Thank you for watching this brief journey\nthrough computer science history!\nKeep learning and exploring!", 78, 6)
+        ("Welcome to the fascinating journey\nthrough the history of computer science!", 6, 4),
+        ("Computer science didn't start with modern computers.\nIt began with ancient mathematical concepts.", 11, 5),
+        ("Around 300 BC, Euclid developed algorithms\nfor finding the greatest common divisor.", 17, 5),
+        ("In the 9th century, Persian mathematician\nAl-Khwarizmi gave us the word 'algorithm'.", 23, 5),
+        ("The 1600s brought us binary numbers\nthanks to Gottfried Leibniz.", 29, 4),
+        ("Charles Babbage designed the first\nmechanical computer in the 1830s.", 34, 4),
+        ("Ada Lovelace wrote what many consider\nthe first computer program in 1843.", 39, 5),
+        ("The 1940s saw the birth of electronic computers\nlike ENIAC and the stored-program concept.", 45, 5),
+        ("Alan Turing's work on computability\nlaid the foundation for modern computing.", 51, 5),
+        ("The transistor, invented in 1947,\nrevolutionized computer design.", 57, 4),
+        ("The 1970s brought us personal computers,\nmaking computing accessible to everyone.", 62, 5),
+        ("The Internet emerged from ARPANET,\nconnecting computers worldwide.", 68, 4),
+        ("Today, computer science encompasses\nAI, machine learning, and quantum computing.", 73, 5),
+        ("From ancient algorithms to modern AI,\ncomputer science continues to evolve.", 79, 5),
+        ("Thank you for joining this journey\nthrough computer science history!", 85, 4)
     ]
     
-    # Add all subtitles to the scene
     for text, start_time, duration in subtitles:
         subtitle = create_subtitle(text, start_time, duration)
         scene.add(subtitle)
     
-    # Add decorative elements
-    for i in range(5):
-        decoration = (
-            TextElement("◆", size=60, color=(100, 150, 255))
-                .position(100 + i * 400, 50)
-                .start_at(i * 2)
-                .set_duration(8)
+    # Add some chapter titles with sound effects
+    chapter_titles = [
+        ("Ancient Origins", 16, 2),
+        ("Mechanical Era", 33, 2),
+        ("Electronic Age", 44, 2),
+        ("Modern Computing", 61, 2),
+        ("Future Frontiers", 72, 2)
+    ]
+    
+    for text, start_time, duration in chapter_titles:
+        # Add sound effect for each chapter
+        effect_sound = (
+            AudioElement("sample_asset/sample-effect.mp3")
+                .set_volume(0.6)  # Medium volume for effect
+                .start_at(start_time)
         )
-        scene.add(decoration)
+        scene.add(effect_sound)
         
-    # Add scene to master scene
+        chapter_title = (
+            TextElement(text, size=60, color=(255, 215, 0))
+                .set_background((0, 0, 0), alpha=150, padding=20)
+                .set_corner_radius(15)
+                .set_alignment('center')
+                .start_at(start_time)
+                .set_duration(duration)
+        )
+        chapter_title_x = (1920 - chapter_title.width) // 2
+        chapter_title_y = 200
+        chapter_title.position(chapter_title_x, chapter_title_y)
+        scene.add(chapter_title)
+    
+    # Add scene to master scene and render
     master_scene.add(scene)
     
-    # Execute rendering
-    print("Creating a 2-minute educational video about Computer Science History...")
-    print("This video will include properly formatted subtitles with line breaks.")
+    print("Starting to render computer science history video...")
     master_scene.render()
-    print("Video completed: computer_science_history.mp4")
-
+    print("Video rendering complete! Check output/computer_science_history.mp4")
 
 if __name__ == "__main__":
     main()

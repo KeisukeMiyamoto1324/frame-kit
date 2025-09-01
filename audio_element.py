@@ -32,6 +32,8 @@ class AudioElement(VideoBase):
         self.fade_in_duration = 0.0
         self.fade_out_duration = 0.0
         self.is_muted = False
+        self.loop_until_scene_end = False
+        self.original_duration = 0.0
         self._load_audio_info()
         # 初期化時にサイズを計算（オーディオは視覚的要素がないため0）
         self.calculate_size()
@@ -48,6 +50,7 @@ class AudioElement(VideoBase):
                 audio_file = MutagenFile(self.audio_path)
                 if audio_file is not None and hasattr(audio_file, 'info'):
                     self.duration = float(audio_file.info.length)
+                    self.original_duration = self.duration
                     print(f"Audio loaded (mutagen): {self.audio_path}, duration: {self.duration:.2f}s")
                     return
             
@@ -56,6 +59,7 @@ class AudioElement(VideoBase):
                 try:
                     y, sr = librosa.load(self.audio_path, sr=None)
                     self.duration = len(y) / sr
+                    self.original_duration = self.duration
                     self.sample_rate = sr
                     print(f"Audio loaded (librosa): {self.audio_path}, duration: {self.duration:.2f}s, sr: {sr}")
                     return
@@ -68,10 +72,12 @@ class AudioElement(VideoBase):
             print("  pip3 install mutagen")
             print("  pip3 install librosa")
             self.duration = 10.0  # デフォルト値
+            self.original_duration = self.duration
             
         except Exception as e:
             print(f"Error loading audio info {self.audio_path}: {e}")
             self.duration = 10.0  # デフォルト値
+            self.original_duration = self.duration
     
     def set_volume(self, volume: float):
         """Set audio volume (0.0 to 1.0)"""
@@ -98,6 +104,26 @@ class AudioElement(VideoBase):
         """Unmute the audio"""
         self.is_muted = False
         return self
+    
+    def set_loop_until_scene_end(self, loop: bool = True):
+        """Set whether to loop audio until scene/master scene ends (BGM mode)"""
+        self.loop_until_scene_end = loop
+        if loop:
+            print(f"BGM mode enabled for: {self.audio_path}")
+        return self
+    
+    def update_duration_for_scene(self, scene_duration: float):
+        """Update duration to match scene duration when in loop mode"""
+        if self.loop_until_scene_end:
+            # BGMはシーンの長さに合わせて調整（ループまたは強制終了）
+            if scene_duration > 0:  # シーンに他の要素がある場合のみ
+                self.duration = scene_duration
+                if scene_duration > self.original_duration:
+                    print(f"BGM will loop: original {self.original_duration:.2f}s → extended to {scene_duration:.2f}s")
+                elif scene_duration < self.original_duration:
+                    print(f"BGM will be cut: original {self.original_duration:.2f}s → cut to {scene_duration:.2f}s")
+                else:
+                    print(f"BGM duration matches scene: {scene_duration:.2f}s")
     
     def get_effective_volume(self, audio_time: float):
         """Calculate effective volume considering fade in/out and mute"""

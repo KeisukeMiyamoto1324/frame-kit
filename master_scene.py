@@ -39,7 +39,20 @@ class MasterScene:
         
         # オーディオ要素を収集
         self._collect_audio_elements(scene)
+        
+        # マスターシーン全体の長さに合わせてBGMの持続時間を更新
+        self._update_master_bgm_durations()
         return self
+    
+    def _update_master_bgm_durations(self):
+        """マスターシーン全体の長さに合わせてBGMの持続時間を更新"""
+        from audio_element import AudioElement
+        for audio_element in self.audio_elements:
+            if isinstance(audio_element, AudioElement) and audio_element.loop_until_scene_end:
+                # マスターシーン全体の長さまでBGMを拡張
+                if self.total_duration > audio_element.duration:
+                    audio_element.duration = self.total_duration
+                    print(f"Master BGM duration extended to {self.total_duration:.2f}s for: {audio_element.audio_path}")
     
     def _collect_audio_elements(self, scene: Scene):
         """シーンからオーディオ要素を収集"""
@@ -138,12 +151,42 @@ class MasterScene:
         
         # 存在するオーディオファイルのみを追加（タイミング情報付き）
         valid_audio_files = []
+        
+        # オーディオタイミング検証
+        print("=== Audio Timing Validation ===")
         for audio_element in self.audio_elements:
             if os.path.exists(audio_element.audio_path):
+                # タイミング検証
+                print(f"Validating: {audio_element.audio_path}")
+                print(f"  Start time: {audio_element.start_time:.2f}s")
+                print(f"  Duration: {audio_element.duration:.2f}s") 
+                print(f"  End time: {audio_element.start_time + audio_element.duration:.2f}s")
+                print(f"  Volume: {getattr(audio_element, 'volume', 1.0)}")
+                print(f"  Is BGM: {getattr(audio_element, 'loop_until_scene_end', False)}")
+                
+                # 警告チェック
+                if audio_element.start_time + audio_element.duration > self.total_duration + 0.1:  # 0.1s tolerance
+                    print(f"  WARNING: Audio extends beyond scene duration ({self.total_duration:.2f}s)")
+                if audio_element.start_time < 0:
+                    print(f"  WARNING: Audio starts before scene start")
+                
+                print("")  # 空行でセパレート
                 # オーディオファイルにタイミング情報を適用してFFmpegに渡す
-                cmd.extend(['-itsoffset', str(audio_element.start_time), '-i', audio_element.audio_path])
+                if getattr(audio_element, 'loop_until_scene_end', False):
+                    # BGMモードの場合は計算されたループ回数を使用
+                    if audio_element.duration > audio_element.original_duration:
+                        # 必要なループ回数を計算 (ceiling division)
+                        loop_count = int((audio_element.duration / audio_element.original_duration) + 0.9999)
+                        cmd.extend(['-stream_loop', str(loop_count - 1), '-itsoffset', str(audio_element.start_time), '-i', audio_element.audio_path])
+                        print(f"Adding BGM (loop {loop_count}x): {audio_element.audio_path} (start: {audio_element.start_time}s, target duration: {audio_element.duration}s)")
+                    else:
+                        # ループ不要の場合は通常処理
+                        cmd.extend(['-itsoffset', str(audio_element.start_time), '-i', audio_element.audio_path])
+                        print(f"Adding BGM (no loop): {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
+                else:
+                    cmd.extend(['-itsoffset', str(audio_element.start_time), '-i', audio_element.audio_path])
+                    print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
                 valid_audio_files.append(audio_element)
-                print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
             else:
                 print(f"Warning: Audio file not found, skipping: {audio_element.audio_path}")
         
@@ -182,10 +225,15 @@ class MasterScene:
                 if getattr(audio_element, 'is_muted', False):
                     volume = 0.0
                 
-                audio_inputs.append(f"[{i}:a]volume={volume}[a{i}]")
+                # BGMの場合は時間制限も追加
+                if getattr(audio_element, 'loop_until_scene_end', False):
+                    audio_inputs.append(f"[{i}:a]volume={volume},atrim=end={self.total_duration}[a{i}]")
+                    print(f"  BGM track with duration limit: {self.total_duration}s")
+                else:
+                    audio_inputs.append(f"[{i}:a]volume={volume}[a{i}]")
             
             # 全てのオーディオストリームをミキシング
-            mix_inputs = '+'.join([f"[a{i}]" for i in range(1, len(valid_audio_files) + 1)])
+            mix_inputs = ''.join([f"[a{i}]" for i in range(1, len(valid_audio_files) + 1)])
             filter_complex = ';'.join(audio_inputs) + f";{mix_inputs}amix=inputs={len(valid_audio_files)}[aout]"
             
             cmd.extend(['-filter_complex', filter_complex, '-map', '0:v', '-map', '[aout]', 
