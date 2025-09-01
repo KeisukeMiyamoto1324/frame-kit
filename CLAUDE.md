@@ -12,7 +12,7 @@ The project uses a Python virtual environment:
 - **Virtual Environment**: `venv/` directory contains the Python virtual environment  
 - **Python Version**: Python 3.12
 - **Main Entry Points**: 
-  - `main.py`: Basic demo with text, image, and video elements
+  - `main.py`: Educational video demo with subtitles and timing
   - `test_telop_features.py`: Advanced telop features demo (backgrounds, borders, multiline text)
   - `test_corner_radius.py`: Corner radius demo for all element types
 
@@ -22,15 +22,23 @@ The project uses a Python virtual environment:
 # Activate the virtual environment (macOS/Linux)
 source venv/bin/activate
 
-# Run the main video editor demo
+# Run the main educational video demo (2-minute computer science history)
 python main.py
 
 # Run telop features demo (text with backgrounds, borders, multiline)
 python test_telop_features.py
 
-# Run corner radius demo (rounded corners for all element types)
+# Run corner radius demo (rounded corners for all element types) 
 python test_corner_radius.py
 ```
+
+### Development Commands
+
+Since this is a Python project without build tools, development primarily involves:
+- **Activate environment**: `source venv/bin/activate`
+- **Run demos**: `python main.py` or other test files
+- **Install dependencies**: `pip3 install <package>` (avoid `pip`, use `pip3`)
+- **Check outputs**: Generated videos appear in `output/` directory
 
 ### Key Dependencies
 
@@ -44,7 +52,11 @@ Core libraries required for video generation:
 
 ## Core Architecture
 
-The video editor is built around a modular class-based architecture:
+The video editor is built around a modular class-based architecture with inheritance patterns:
+
+### Class Hierarchy and Rendering Pipeline
+
+The architecture follows a clear inheritance structure where all visual elements extend `VideoBase`, providing consistent positioning, timing, and visual effects across all element types. The rendering pipeline uses OpenGL for real-time graphics with off-screen rendering to generate video files.
 
 ### Core Components
 
@@ -86,27 +98,35 @@ The video editor is built around a modular class-based architecture:
 
 ```
 video-editer/
-├── main.py              # Basic demo script 
-├── test_telop_features.py # Advanced telop features demo
+├── main.py              # Educational video demo with complex subtitles
+├── test_telop_features.py # Advanced telop features demo  
 ├── test_corner_radius.py # Corner radius demo
-├── video_base.py        # Base class for all video elements
-├── text_element.py      # Text rendering implementation
-├── image_element.py     # Image rendering implementation
-├── video_element.py     # Video clip rendering implementation
-├── scene.py             # Scene container class
-├── master_scene.py      # Main video composition manager
+├── video_base.py        # Base class with positioning, timing, effects
+├── text_element.py      # Text rendering with PIL/OpenGL integration
+├── image_element.py     # Static image rendering with scaling
+├── video_element.py     # Frame-by-frame video clip rendering  
+├── scene.py             # Scene container for element grouping
+├── master_scene.py      # OpenGL context and video export manager
 ├── sample_asset/        # Sample media files (images, videos)
-├── output/              # Generated video files
-├── prompt.txt           # Development notes and planned features
+├── output/              # Generated MP4 video files
+├── prompt.txt           # Development notes (Japanese)
 └── venv/                # Python virtual environment
 ```
+
+### Key Architectural Patterns
+
+- **Fluent Interface**: All elements use method chaining (`.position().set_duration().start_at()`)
+- **Lazy Loading**: OpenGL textures created only when rendering context exists  
+- **Inheritance**: Common functionality in `VideoBase` (positioning, timing, effects)
+- **Composition**: Scenes group elements, MasterScene manages overall composition
+- **Frame-accurate Timing**: Video elements handle precise frame synchronization
 
 ### Output Structure
 
 - Videos are saved to the `output/` directory (auto-created)
 - Default output format is MP4 with mp4v codec
 - Example outputs: 
-  - `output/text_image_video_demo.mp4` (basic demo)
+  - `output/computer_science_history.mp4` (main.py educational video)
   - `output/telop_features_demo.mp4` (advanced telop demo)
   - `output/corner_radius_test.mp4` (corner radius demo)
 
@@ -185,7 +205,7 @@ from image_element import ImageElement
 from video_element import VideoElement
 
 # Create master scene
-master_scene = MasterScene(width=1920, height=1080, fps=60)
+master_scene = MasterScene(width=1920, height=1080, fps=30)
 master_scene.set_output("my_video.mp4")
 
 # Create and populate scene
@@ -195,12 +215,48 @@ image = ImageElement("sample_asset/image.jpg").position(500, 500).set_scale(0.5)
 video = VideoElement("sample_asset/video.mp4").position(100, 100).set_scale(0.3)
 
 scene.add(text)
-scene.add(image)
+scene.add(image) 
 scene.add(video)
 
 # Render video
 master_scene.add(scene)
 master_scene.render()
+```
+
+### Subtitle Creation Pattern
+
+For educational videos with synchronized subtitles, use this pattern from `main.py`:
+
+```python
+def create_subtitle(text, start_time, duration=4.0):
+    """Create a centered subtitle at the bottom of the screen"""
+    subtitle = (
+        TextElement(text, size=48, color=(255, 255, 255))
+            .set_background((0, 0, 0), alpha=180, padding={'top': 15, 'bottom': 15, 'left': 30, 'right': 30})
+            .set_corner_radius(12)
+            .set_alignment('center')
+            .set_line_spacing(8)
+            .start_at(start_time)
+            .set_duration(duration)
+    )
+    
+    # Position at bottom center of screen
+    subtitle_x = (1920 - subtitle.width) // 2
+    subtitle_y = 900  # Bottom area of 1080p screen
+    subtitle.position(subtitle_x, subtitle_y)
+    
+    return subtitle
+
+# Usage with timed subtitles
+subtitles = [
+    ("Welcome to today's lesson about\nthe fascinating history of computer science!", 5, 4),
+    ("Computer science didn't start with modern computers.\nIt began with ancient mathematical concepts\nand calculation methods.", 9, 5),
+    # ... more subtitles
+]
+
+for text, start_time, duration in subtitles:
+    subtitle = create_subtitle(text, start_time, duration)
+    scene.add(subtitle)
 ```
 
 ### Coordinate System
@@ -214,8 +270,22 @@ master_scene.render()
 - **macOS**: Uses system fonts like Arial.ttf and Helvetica.ttc
 - **Cross-platform**: Falls back to default fonts if system fonts unavailable  
 - **Hidden Window**: Renders off-screen using SDL video driver settings
-- **Environment**: Suppresses pygame support prompts and pkg_resources warnings
-- Always use pip3 instead of pip
+- **Environment**: Suppresses pygame support prompts and pkg_resources warnings  
+- **Dependencies**: Always use `pip3` instead of `pip` for installations
+- **Japanese Support**: Codebase includes Japanese comments and development notes in `prompt.txt`
+
+## Common Development Tasks
+
+### Corner Radius Implementation
+
+The codebase has a known issue with corner radius implementation for images and videos. When corner radius is applied to images or videos, the content in the rounded corners should not be displayed (masked out). This is mentioned in `prompt.txt` and needs to be addressed in the rendering pipeline.
+
+### Video Timing and Synchronization
+
+- Frame-accurate timing is handled automatically by `VideoElement`
+- Subtitle timing uses floating-point seconds for precise control
+- Use consistent fps settings (30 or 60) across all elements in a scene
+- Educational videos typically use 30fps for smoother text rendering
 
 ## Element-Specific Methods
 

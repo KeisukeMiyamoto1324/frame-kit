@@ -58,7 +58,12 @@ class VideoElement(VideoBase):
             self.texture_width = base_width + self.padding['left'] + self.padding['right']
             self.texture_height = base_height + self.padding['top'] + self.padding['bottom']
             
-            print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames")
+            # Set duration to video length
+            if self.fps > 0 and self.total_frames > 0:
+                video_duration = self.total_frames / self.fps
+                self.duration = video_duration
+            
+            print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames, duration: {self.duration:.2f}s")
             
         except Exception as e:
             print(f"Error loading video info {self.video_path}: {e}")
