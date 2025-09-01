@@ -1,4 +1,4 @@
-import os
+import os, sys
 import warnings
 
 # Pygame関連の環境変数を事前に設定
@@ -7,6 +7,9 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 # pkg_resources警告を抑制
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", message=".*pkg_resources.*")
+
+# 親ディレクトリをパスに追加
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from master_scene import MasterScene
 from scene import Scene

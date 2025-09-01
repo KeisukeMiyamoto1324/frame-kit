@@ -1,5 +1,9 @@
 import os
+import sys
 import warnings
+
+# 親ディレクトリをパスに追加
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Pygame関連の環境変数を事前に設定
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
