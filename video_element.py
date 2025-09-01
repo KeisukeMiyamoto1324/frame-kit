@@ -4,6 +4,7 @@ import numpy as np
 from OpenGL.GL import *
 from PIL import Image
 from video_base import VideoBase
+from audio_element import AudioElement
 
 
 class VideoElement(VideoBase):
@@ -21,9 +22,12 @@ class VideoElement(VideoBase):
         self.fps = 30.0
         self.total_frames = 0
         self.current_frame_data = None
+        self.audio_element = None
         self._create_video_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
+        # オーディオ要素を作成
+        self._create_audio_element()
     
     def _create_video_texture(self):
         """Initialize video texture creation"""
@@ -67,6 +71,22 @@ class VideoElement(VideoBase):
             
         except Exception as e:
             print(f"Error loading video info {self.video_path}: {e}")
+    
+    def _create_audio_element(self):
+        """Create audio element from video file"""
+        try:
+            # VideoElementと同じタイミングでオーディオを再生するようにAudioElementを作成
+            self.audio_element = AudioElement(self.video_path, volume=1.0)
+            # VideoElementと同じstart_timeとdurationを設定
+            self.audio_element.start_time = self.start_time
+            self.audio_element.duration = self.duration
+        except Exception as e:
+            print(f"Warning: Could not create audio element for {self.video_path}: {e}")
+            self.audio_element = None
+    
+    def get_audio_element(self):
+        """Get the associated audio element"""
+        return self.audio_element
     
     def _create_texture_now(self):
         """Create OpenGL texture"""
@@ -151,6 +171,20 @@ class VideoElement(VideoBase):
             border_size = self.border_width * 2 if self.border_color else 0
             self.width = self.texture_width + border_size
             self.height = self.texture_height + border_size
+        return self
+    
+    def start_at(self, start_time: float):
+        """Set start time and update audio element timing"""
+        super().start_at(start_time)
+        if self.audio_element:
+            self.audio_element.start_at(start_time)
+        return self
+    
+    def set_duration(self, duration: float):
+        """Set duration and update audio element timing"""
+        super().set_duration(duration)
+        if self.audio_element:
+            self.audio_element.set_duration(duration)
         return self
     
     def render(self, time: float):

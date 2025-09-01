@@ -44,10 +44,16 @@ class MasterScene:
     def _collect_audio_elements(self, scene: Scene):
         """シーンからオーディオ要素を収集"""
         from audio_element import AudioElement
+        from video_element import VideoElement
         for element in scene.elements:
             if isinstance(element, AudioElement):
                 self.audio_elements.append(element)
                 print(f"Audio element found: {element.audio_path}")
+            elif isinstance(element, VideoElement) and element.get_audio_element():
+                # ビデオ要素からオーディオ要素を取得
+                audio_element = element.get_audio_element()
+                self.audio_elements.append(audio_element)
+                print(f"Video audio element found: {audio_element.audio_path}")
     
     def set_output(self, filename: str):
         """出力ファイル名を設定"""
