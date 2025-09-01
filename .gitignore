@@ -188,3 +188,5 @@ Thumbs.db
 *.otf
 *.woff
 *.woff2
+
+sample_asset/

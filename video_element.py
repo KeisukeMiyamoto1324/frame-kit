@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 from OpenGL.GL import *
+from PIL import Image
 from video_base import VideoBase
 
 
@@ -47,9 +48,13 @@ class VideoElement(VideoBase):
             self.fps = self.video_capture.get(cv2.CAP_PROP_FPS)
             self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Calculate scaled dimensions
-            self.texture_width = int(self.original_width * self.scale)
-            self.texture_height = int(self.original_height * self.scale)
+            # Calculate scaled dimensions (border/background will be applied at render time)
+            base_width = int(self.original_width * self.scale)
+            base_height = int(self.original_height * self.scale)
+            
+            # Add padding to texture dimensions
+            self.texture_width = base_width + self.padding['left'] + self.padding['right']
+            self.texture_height = base_height + self.padding['top'] + self.padding['bottom']
             
             print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames")
             
@@ -102,6 +107,15 @@ class VideoElement(VideoBase):
         alpha = np.full((frame.shape[0], frame.shape[1], 1), 255, dtype=np.uint8)
         frame = np.concatenate([frame, alpha], axis=2)
         
+        # Convert to PIL Image for border/background processing
+        pil_frame = Image.fromarray(frame, 'RGBA')
+        
+        # Apply border and background
+        pil_frame = self._apply_border_and_background_to_image(pil_frame)
+        
+        # Convert back to numpy array
+        frame = np.array(pil_frame)
+        
         # Flip vertically for OpenGL coordinate system
         frame = np.flipud(frame)
         
@@ -110,10 +124,14 @@ class VideoElement(VideoBase):
     def set_scale(self, scale: float):
         """Set video scale"""
         self.scale = scale
-        # Update texture dimensions
+        # Update texture dimensions (border/background will be applied at render time)
         if hasattr(self, 'original_width'):
-            self.texture_width = int(self.original_width * self.scale)
-            self.texture_height = int(self.original_height * self.scale)
+            base_width = int(self.original_width * self.scale)
+            base_height = int(self.original_height * self.scale)
+            
+            # Add padding to texture dimensions
+            self.texture_width = base_width + self.padding['left'] + self.padding['right']
+            self.texture_height = base_height + self.padding['top'] + self.padding['bottom']
         return self
     
     def render(self, time: float):
@@ -146,9 +164,14 @@ class VideoElement(VideoBase):
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.texture_id)
         
-        # Upload frame data to texture
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.texture_width, self.texture_height, 
+        # Upload frame data to texture (frame_data already includes border/background)
+        actual_height, actual_width = frame_data.shape[:2]
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, actual_width, actual_height, 
                      0, GL_RGBA, GL_UNSIGNED_BYTE, frame_data)
+        
+        # Update texture dimensions with actual frame size
+        self.texture_width = actual_width
+        self.texture_height = actual_height
         
         # Enable alpha blending
         glEnable(GL_BLEND)

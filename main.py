@@ -35,6 +35,7 @@ def main():
             .position(960, 400)
             .set_duration(5)
             .start_at(1)
+            .set_border(color=[127, 127, 127])
     )
     
     # Create image element
@@ -44,6 +45,7 @@ def main():
             .set_scale(0.5)
             .set_duration(4)
             .start_at(0.5)
+            .set_border(color=[127, 127, 127])
     )
     
     # Create video element
@@ -53,6 +55,7 @@ def main():
             .set_scale(0.3)
             .set_duration(6)
             .start_at(1.5)
+            .set_border(color=[127, 127, 127])
     )
     
     # Add elements to scene

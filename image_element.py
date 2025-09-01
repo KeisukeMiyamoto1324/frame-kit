@@ -46,6 +46,9 @@ class ImageElement(VideoBase):
                 new_height = int(self.original_height * self.scale)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
+            # Apply border and background
+            img = self._apply_border_and_background_to_image(img)
+            
             # Update texture size
             self.texture_width, self.texture_height = img.size
             

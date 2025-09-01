@@ -18,40 +18,12 @@ class TextElement(VideoBase):
         self.texture_width = 0
         self.texture_height = 0
         
-        # 背景ボックス設定
-        self.background_color = None
-        self.background_alpha = 255
-        self.padding = {'top': 0, 'right': 0, 'bottom': 0, 'left': 0}
-        
-        # 枠線設定
-        self.border_color = None
-        self.border_width = 0
-        
         # 複数行・配置設定
         self.alignment = 'left'  # 'left', 'center', 'right'
         self.line_spacing = 0
         
         self._create_text_texture()
     
-    def set_background(self, color: Tuple[int, int, int], alpha: int = 255, padding: int = 5):
-        """背景色を設定"""
-        self.background_color = color
-        self.background_alpha = alpha
-        if isinstance(padding, int):
-            self.padding = {'top': padding, 'right': padding, 'bottom': padding, 'left': padding}
-        elif isinstance(padding, dict):
-            self.padding.update(padding)
-        # テクスチャを再作成する必要がある
-        self.texture_created = False
-        return self
-    
-    def set_border(self, color: Tuple[int, int, int], width: int = 1):
-        """枠線を設定"""
-        self.border_color = color
-        self.border_width = width
-        # テクスチャを再作成する必要がある
-        self.texture_created = False
-        return self
     
     def set_alignment(self, alignment: str):
         """テキスト配置を設定 ('left', 'center', 'right')"""
@@ -109,8 +81,7 @@ class TextElement(VideoBase):
                 y_offset = -bbox[1]
             else:  # 空行の場合
                 line_width = 0
-                ascent, descent = font.getmetrics()
-                line_height = ascent
+                line_height = font.getmetrics()[0]  # ascent only
                 y_offset = 0
             
             line_info.append({
@@ -125,38 +96,30 @@ class TextElement(VideoBase):
             if i < len(lines) - 1:  # 最後の行でなければ行間を追加
                 total_height += self.line_spacing
         
-        # パディングを追加
+        # テキスト用の画像を作成（パディングなし）
         content_width = max_width
         content_height = total_height
         
-        canvas_width = content_width + self.padding['left'] + self.padding['right']
-        canvas_height = content_height + self.padding['top'] + self.padding['bottom']
-        
         # 最小サイズを保証
-        canvas_width = max(canvas_width, 1)
-        canvas_height = max(canvas_height, 1)
+        content_width = max(content_width, 1)
+        content_height = max(content_height, 1)
         
-        # テクスチャ用の画像を作成
-        img = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
+        # テキスト用の画像を作成
+        img = Image.new('RGBA', (content_width, content_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
-        # 背景ボックスを描画
-        if self.background_color is not None:
-            bg_color = (*self.background_color, self.background_alpha)
-            draw.rectangle([0, 0, canvas_width-1, canvas_height-1], fill=bg_color)
-        
         # テキストを描画
-        current_y = self.padding['top']
+        current_y = 0
         
         for line_data in line_info:
             if line_data['text'].strip():  # 空行でない場合のみ描画
                 # 水平位置を計算（配置設定に基づく）
                 if self.alignment == 'left':
-                    x_pos = self.padding['left']
+                    x_pos = 0
                 elif self.alignment == 'center':
-                    x_pos = self.padding['left'] + (content_width - line_data['width']) // 2
+                    x_pos = (content_width - line_data['width']) // 2
                 else:  # right
-                    x_pos = self.padding['left'] + content_width - line_data['width']
+                    x_pos = content_width - line_data['width']
                 
                 # テキストを描画
                 draw.text((x_pos, current_y + line_data['y_offset']), 
@@ -167,16 +130,12 @@ class TextElement(VideoBase):
             # 次の行の位置を計算
             current_y += line_data['height'] + self.line_spacing
         
-        # 枠線を描画
-        if self.border_color is not None and self.border_width > 0:
-            border_color = (*self.border_color, 255)
-            for i in range(self.border_width):
-                draw.rectangle([i, i, canvas_width-1-i, canvas_height-1-i], 
-                             outline=border_color, width=1)
+        # 背景と枠線を適用
+        img = self._apply_border_and_background_to_image(img)
         
         # 実際のテクスチャサイズを更新
-        self.texture_width = canvas_width
-        self.texture_height = canvas_height
+        self.texture_width = img.size[0]
+        self.texture_height = img.size[1]
         
         # 画像をNumPy配列に変換
         img_data = np.array(img)
