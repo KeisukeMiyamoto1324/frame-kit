@@ -62,7 +62,7 @@ def main():
     # Add background music
     bgm = (
         AudioElement("sample_asset/sample-bgm.mp3")
-            .set_volume(0.5)  # Much lower volume for background to hear effects
+            .set_volume(0.3)  # Set to 50% volume for background
             .set_loop_until_scene_end(True)  # Loop until scene ends
             .start_at(0)
     )

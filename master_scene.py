@@ -172,21 +172,25 @@ class MasterScene:
                 
                 print("")  # 空行でセパレート
                 
-                # オーディオファイルを追加（-itsoffsetは使わず、filter_complexで遅延処理）
-                if getattr(audio_element, 'loop_until_scene_end', False):
-                    # BGMモードの場合は計算されたループ回数を使用
-                    if audio_element.duration > audio_element.original_duration:
-                        # 必要なループ回数を計算 (ceiling division)
-                        loop_count = int((audio_element.duration / audio_element.original_duration) + 0.9999)
-                        cmd.extend(['-stream_loop', str(loop_count - 1), '-i', audio_element.audio_path])
-                        print(f"Adding BGM (loop {loop_count}x): {audio_element.audio_path} (start: {audio_element.start_time}s, target duration: {audio_element.duration}s)")
-                    else:
-                        # ループ不要の場合は通常処理
+                # BGMモードでループが必要な場合は複数回入力を追加
+                if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
+                    # 必要なループ回数を計算
+                    loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
+                    print(f"Adding BGM with {loop_count} loop iterations: {audio_element.audio_path}")
+                    
+                    # 同じファイルを複数回入力として追加
+                    for i in range(loop_count):
                         cmd.extend(['-i', audio_element.audio_path])
-                        print(f"Adding BGM (no loop): {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
+                    
+                    print(f"BGM will use {loop_count} input streams for looping")
                 else:
+                    # 通常の単一入力
                     cmd.extend(['-i', audio_element.audio_path])
-                    print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
+                    if getattr(audio_element, 'loop_until_scene_end', False):
+                        print(f"Adding BGM (no loop needed): {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
+                    else:
+                        print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
+                
                 valid_audio_files.append(audio_element)
             else:
                 print(f"Warning: Audio file not found, skipping: {audio_element.audio_path}")
@@ -208,9 +212,48 @@ class MasterScene:
             if is_muted:
                 volume = 0.0
             
-            # オーディオフィルターでボリューム調整
-            cmd.extend(['-filter:a', f'volume={volume}', '-c:v', 'copy', '-c:a', 'aac', 
-                       '-t', str(self.total_duration), final_output])
+            # BGMのループが必要な場合
+            if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
+                # 複数の入力ストリームを連結してループを作成
+                loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
+                print(f"Single BGM will use {loop_count} streams to create loop from {audio_element.original_duration:.2f}s to {audio_element.duration:.2f}s")
+                
+                # 複数のストリームを連結
+                input_streams = []
+                for i in range(1, loop_count + 1):  # 1から開始（0はビデオ）
+                    input_streams.append(f"[{i}:a]")
+                
+                # 連結フィルター
+                concat_filter = ''.join(input_streams) + f"concat=n={loop_count}:v=0:a=1[looped];"
+                
+                # 遅延処理
+                start_time = audio_element.start_time
+                filter_chain = "[looped]"
+                if start_time > 0:
+                    delay_ms = int(start_time * 1000)
+                    filter_chain += f"adelay={delay_ms}|{delay_ms},"
+                
+                # 音量調整と時間制限
+                filter_chain += f"volume={volume},atrim=end={self.total_duration}"
+                
+                full_filter = concat_filter + filter_chain
+                cmd.extend(['-filter_complex', full_filter, '-c:v', 'copy', '-c:a', 'aac', 
+                           '-t', str(self.total_duration), final_output])
+            else:
+                # 単一ファイル、ループなしの場合
+                filter_chain = ""
+                
+                # 遅延処理
+                start_time = audio_element.start_time
+                if start_time > 0:
+                    delay_ms = int(start_time * 1000)
+                    filter_chain += f"adelay={delay_ms}|{delay_ms},"
+                
+                # 音量調整と時間制限
+                filter_chain += f"volume={volume},atrim=end={self.total_duration}"
+                
+                cmd.extend(['-filter:a', filter_chain, '-c:v', 'copy', '-c:a', 'aac', 
+                           '-t', str(self.total_duration), final_output])
         else:
             # 複数のオーディオファイルをミキシング
             print(f"Mixing {len(valid_audio_files)} audio tracks...")
@@ -232,6 +275,13 @@ class MasterScene:
                 # フィルターチェーンを構築
                 filter_chain = f"[{i}:a]"
                 
+                # BGMの場合は最初にループ処理を適用
+                if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
+                    # 必要な長さまでループさせる
+                    # aloopを使用して無限ループし、その後atrimで必要な長さに切り取る
+                    filter_chain += f"aloop=loop=-1:size={int(44100 * audio_element.original_duration)},atrim=end={audio_element.duration},"
+                    print(f"  BGM will loop from {audio_element.original_duration:.2f}s to {audio_element.duration:.2f}s")
+                
                 # 遅延を適用（0秒の場合はスキップ）
                 if delay_ms > 0:
                     filter_chain += f"adelay={delay_ms}|{delay_ms},"  # ステレオの場合両チャンネルに適用
@@ -239,18 +289,18 @@ class MasterScene:
                 # 音量調整を適用
                 filter_chain += f"volume={volume}"
                 
-                # BGMの場合は時間制限も追加
+                # 最終的な時間制限を適用（全体の動画時間を超えないように）
                 if getattr(audio_element, 'loop_until_scene_end', False):
                     filter_chain += f",atrim=end={self.total_duration}"
-                    print(f"  BGM track with delay: {delay_ms}ms, duration limit: {self.total_duration}s")
+                    print(f"  BGM track with delay: {delay_ms}ms, final duration limit: {self.total_duration}s")
                 else:
                     print(f"  Effect track with delay: {delay_ms}ms")
                 
                 audio_inputs.append(f"{filter_chain}[a{i}]")
             
-            # 全てのオーディオストリームをミキシング
+            # 全てのオーディオストリームをミキシング（正規化を無効にして音量を保持）
             mix_inputs = ''.join([f"[a{i}]" for i in range(1, len(valid_audio_files) + 1)])
-            filter_complex = ';'.join(audio_inputs) + f";{mix_inputs}amix=inputs={len(valid_audio_files)}[aout]"
+            filter_complex = ';'.join(audio_inputs) + f";{mix_inputs}amix=inputs={len(valid_audio_files)}:normalize=0[aout]"
             
             cmd.extend(['-filter_complex', filter_complex, '-map', '0:v', '-map', '[aout]', 
                        '-c:v', 'copy', '-c:a', 'aac', '-t', str(self.total_duration), final_output])
