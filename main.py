@@ -52,7 +52,7 @@ def main():
     
     # Add background image
     background = (
-        ImageElement("sample_asset/image.png")
+        ImageElement("sample_asset/bg.png")
             .set_crop(1920, 1080, mode='fill')  # Fill entire 1080p screen
             .position(0, 0)  # Position at top-left
             .start_at(0)
@@ -133,6 +133,7 @@ def main():
                 repeat_delay=0.1,
                 scene_duration=master_scene.total_duration or 90
             )
+            .set_corner_radius(20)
     )
     scene.add(dog_pulse)
     

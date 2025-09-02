@@ -110,8 +110,25 @@ class ImageElement(VideoBase):
         if self.texture_id is None or not self.texture_created:
             return
         
+        # Get animated properties
+        animated_props = self.get_animated_properties(time)
+        
+        # Calculate current position and scale with animations
+        current_x = animated_props.get('x', self.x)
+        current_y = animated_props.get('y', self.y)
+        current_scale = animated_props.get('scale', 1.0)
+        current_alpha = animated_props.get('alpha', 1.0)
+        
+        # Calculate scaled dimensions
+        scaled_width = self.texture_width * current_scale
+        scaled_height = self.texture_height * current_scale
+        
         # Save current OpenGL state
         glPushAttrib(GL_ALL_ATTRIB_BITS)
+        
+        # Apply alpha
+        if current_alpha < 1.0:
+            glColor4f(1.0, 1.0, 1.0, current_alpha)
         
         # Enable texture
         glEnable(GL_TEXTURE_2D)
@@ -121,26 +138,26 @@ class ImageElement(VideoBase):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Set texture environment to replace (preserves texture colors)
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)
+        # Set texture environment to modulate (applies color/alpha)
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
         
-        # Draw textured quad with corrected texture coordinates
+        # Draw textured quad with corrected texture coordinates and animation
         glBegin(GL_QUADS)
         # Bottom-left
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(self.x, self.y + self.texture_height)
+        glVertex2f(current_x, current_y + scaled_height)
         
         # Bottom-right
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(self.x + self.texture_width, self.y + self.texture_height)
+        glVertex2f(current_x + scaled_width, current_y + scaled_height)
         
         # Top-right
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(self.x + self.texture_width, self.y)
+        glVertex2f(current_x + scaled_width, current_y)
         
         # Top-left
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(self.x, self.y)
+        glVertex2f(current_x, current_y)
         glEnd()
         
         # Restore OpenGL state
