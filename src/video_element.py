@@ -107,9 +107,7 @@ class VideoElement(VideoBase):
                 video_duration = self.total_frames / self.fps
                 self.duration = video_duration
                 self.original_duration = video_duration
-            
-            print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames, duration: {self.duration:.2f}s")
-            
+
         except Exception as e:
             print(f"Error loading video info {self.video_path}: {e}")
     
@@ -128,9 +126,7 @@ class VideoElement(VideoBase):
             # VideoElementと同じstart_timeとdurationを設定
             self._sync_audio_timing()
             self._audio_element_created = True
-            print(f"Audio element created for video: {self.video_path}")
         except Exception as e:
-            print(f"Warning: Could not create audio element for {self.video_path}: {e}")
             self.audio_element = None
     
     def _sync_audio_timing(self) -> None:
@@ -140,11 +136,9 @@ class VideoElement(VideoBase):
         duration as the video element for perfect synchronization.
         """
         if self.audio_element:
-            print(f"Syncing audio timing: start_time={self.start_time}, duration={self.duration}")
             self.audio_element.start_at(self.start_time)
             self.audio_element.set_duration(self.duration)
-            print(f"Audio element timing set: start_time={self.audio_element.start_time}, duration={self.audio_element.duration}")
-    
+
     def get_audio_element(self) -> Optional[AudioElement]:
         """Get the associated audio element for this video.
         
@@ -381,8 +375,7 @@ class VideoElement(VideoBase):
             Self for method chaining
         """
         self.loop_until_scene_end = loop
-        if loop:
-            print(f"Video loop mode enabled for: {self.video_path}")
+
         return self
     
     def update_duration_for_scene(self, scene_duration: float) -> None:
@@ -395,12 +388,6 @@ class VideoElement(VideoBase):
             # ビデオはシーンの長さに合わせて調整（ループまたは強制終了）
             if scene_duration > 0:  # シーンに他の要素がある場合のみ
                 self.duration = scene_duration
-                if scene_duration > self.original_duration:
-                    print(f"Video will loop: original {self.original_duration:.2f}s → extended to {scene_duration:.2f}s")
-                elif scene_duration < self.original_duration:
-                    print(f"Video will be cut: original {self.original_duration:.2f}s → cut to {scene_duration:.2f}s")
-                else:
-                    print(f"Video duration matches scene: {scene_duration:.2f}s")
                 
                 # オーディオ要素も同期
                 self._ensure_audio_element()

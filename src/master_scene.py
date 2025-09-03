@@ -52,7 +52,6 @@ class MasterScene:
                 # マスターシーン全体の長さまでBGMを拡張
                 if self.total_duration > audio_element.duration:
                     audio_element.duration = self.total_duration
-                    print(f"Master BGM duration extended to {self.total_duration:.2f}s for: {audio_element.audio_path}")
     
     def _collect_audio_elements(self, scene: Scene):
         """シーンからオーディオ要素を収集"""
@@ -61,12 +60,10 @@ class MasterScene:
         for element in scene.elements:
             if isinstance(element, AudioElement):
                 self.audio_elements.append(element)
-                print(f"Audio element found: {element.audio_path}")
             elif isinstance(element, VideoElement) and element.get_audio_element():
                 # ビデオ要素からオーディオ要素を取得
                 audio_element = element.get_audio_element()
                 self.audio_elements.append(audio_element)
-                print(f"Video audio element found: {audio_element.audio_path}")
     
     def set_output(self, filename: str):
         """出力ファイル名を設定"""
@@ -111,7 +108,6 @@ class MasterScene:
         if not video_writer.isOpened():
             raise Exception(f"動画ファイル {full_path} を作成できませんでした")
         
-        print(f"動画ファイル {full_path} の作成を開始しました")
         return video_writer, full_path
     
     def _capture_frame(self):
@@ -153,43 +149,26 @@ class MasterScene:
         valid_audio_files = []
         
         # オーディオタイミング検証
-        print("=== Audio Timing Validation ===")
         for audio_element in self.audio_elements:
             if os.path.exists(audio_element.audio_path):
-                # タイミング検証
-                print(f"Validating: {audio_element.audio_path}")
-                print(f"  Start time: {audio_element.start_time:.2f}s")
-                print(f"  Duration: {audio_element.duration:.2f}s") 
-                print(f"  End time: {audio_element.start_time + audio_element.duration:.2f}s")
-                print(f"  Volume: {getattr(audio_element, 'volume', 1.0)}")
-                print(f"  Is BGM: {getattr(audio_element, 'loop_until_scene_end', False)}")
-                
                 # 警告チェック
                 if audio_element.start_time + audio_element.duration > self.total_duration + 0.1:  # 0.1s tolerance
                     print(f"  WARNING: Audio extends beyond scene duration ({self.total_duration:.2f}s)")
                 if audio_element.start_time < 0:
                     print(f"  WARNING: Audio starts before scene start")
                 
-                print("")  # 空行でセパレート
-                
                 # BGMモードでループが必要な場合は複数回入力を追加
                 if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
                     # 必要なループ回数を計算
                     loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
-                    print(f"Adding BGM with {loop_count} loop iterations: {audio_element.audio_path}")
                     
                     # 同じファイルを複数回入力として追加
                     for i in range(loop_count):
                         cmd.extend(['-i', audio_element.audio_path])
                     
-                    print(f"BGM will use {loop_count} input streams for looping")
                 else:
                     # 通常の単一入力
                     cmd.extend(['-i', audio_element.audio_path])
-                    if getattr(audio_element, 'loop_until_scene_end', False):
-                        print(f"Adding BGM (no loop needed): {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
-                    else:
-                        print(f"Adding audio: {audio_element.audio_path} (start: {audio_element.start_time}s, duration: {audio_element.duration}s)")
                 
                 valid_audio_files.append(audio_element)
             else:
@@ -205,9 +184,7 @@ class MasterScene:
             audio_element = valid_audio_files[0]
             volume = audio_element.volume if hasattr(audio_element, 'volume') else 1.0
             is_muted = getattr(audio_element, 'is_muted', False)
-            
-            print(f"Single audio element: volume={volume}, is_muted={is_muted}")
-            
+
             # ミュート状態の場合は音量を0にする
             if is_muted:
                 volume = 0.0
@@ -216,8 +193,7 @@ class MasterScene:
             if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
                 # 複数の入力ストリームを連結してループを作成
                 loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
-                print(f"Single BGM will use {loop_count} streams to create loop from {audio_element.original_duration:.2f}s to {audio_element.duration:.2f}s")
-                
+
                 # 複数のストリームを連結
                 input_streams = []
                 for i in range(1, loop_count + 1):  # 1から開始（0はビデオ）
@@ -255,9 +231,6 @@ class MasterScene:
                 cmd.extend(['-filter:a', filter_chain, '-c:v', 'copy', '-c:a', 'aac', 
                            '-t', str(self.total_duration), final_output])
         else:
-            # 複数のオーディオファイルをミキシング
-            print(f"Mixing {len(valid_audio_files)} audio tracks...")
-            
             # オーディオストリームをミキシングするfilter_complexを構築（adelayでタイミング制御）
             audio_inputs = []
             for i, audio_element in enumerate(valid_audio_files, 1):  # index 1から開始（index 0はビデオ）
@@ -265,9 +238,7 @@ class MasterScene:
                 volume = audio_element.volume if hasattr(audio_element, 'volume') else 1.0
                 start_time = audio_element.start_time
                 delay_ms = int(start_time * 1000)  # milliseconds for adelay
-                
-                print(f"Audio element {i}: volume={volume}, delay={delay_ms}ms, is_muted={getattr(audio_element, 'is_muted', False)}")
-                
+
                 # ミュート状態の場合は音量を0にする
                 if getattr(audio_element, 'is_muted', False):
                     volume = 0.0
@@ -280,8 +251,7 @@ class MasterScene:
                     # 必要な長さまでループさせる
                     # aloopを使用して無限ループし、その後atrimで必要な長さに切り取る
                     filter_chain += f"aloop=loop=-1:size={int(44100 * audio_element.original_duration)},atrim=end={audio_element.duration},"
-                    print(f"  BGM will loop from {audio_element.original_duration:.2f}s to {audio_element.duration:.2f}s")
-                
+
                 # 遅延を適用（0秒の場合はスキップ）
                 if delay_ms > 0:
                     filter_chain += f"adelay={delay_ms}|{delay_ms},"  # ステレオの場合両チャンネルに適用
@@ -292,9 +262,8 @@ class MasterScene:
                 # 最終的な時間制限を適用（全体の動画時間を超えないように）
                 if getattr(audio_element, 'loop_until_scene_end', False):
                     filter_chain += f",atrim=end={self.total_duration}"
-                    print(f"  BGM track with delay: {delay_ms}ms, final duration limit: {self.total_duration}s")
                 else:
-                    print(f"  Effect track with delay: {delay_ms}ms")
+                    pass
                 
                 audio_inputs.append(f"{filter_chain}[a{i}]")
             
@@ -306,15 +275,11 @@ class MasterScene:
                        '-c:v', 'copy', '-c:a', 'aac', '-t', str(self.total_duration), final_output])
         
         try:
-            print("Mixing audio with video using FFmpeg...")
-            print(f"FFmpeg command: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode == 0:
-                print(f"Audio mixing completed: {final_output}")
                 # 一時ファイルを削除
                 if os.path.exists(video_path) and "temp_video_only" in video_path:
                     os.remove(video_path)
-                    print(f"Temporary video file deleted: {video_path}")
                 return final_output
             else:
                 print(f"FFmpeg error: {result.stderr}")
@@ -348,8 +313,7 @@ class MasterScene:
         
         try:
             total_frames = int(self.total_duration * self.fps)
-            print(f"動画生成開始... (総フレーム数: {total_frames})")
-            
+
             # tqdmでプログレスバーを表示
             with tqdm(total=total_frames, desc="Rendering", unit="frames") as pbar:
                 for frame_num in range(total_frames):
@@ -372,11 +336,6 @@ class MasterScene:
                     # プログレスバーを更新
                     pbar.update(1)
             
-            if self.audio_elements:
-                print(f"ビデオ部分の保存完了: {video_path}")
-            else:
-                print(f"動画ファイルの保存完了: {video_path}")
-            
         finally:
             # クリーンアップ
             video_writer.release()
@@ -385,6 +344,3 @@ class MasterScene:
             # オーディオミキシング（ビデオ作成後）
             if self.audio_elements:
                 final_output = self._create_audio_mix(video_path)
-                print(f"最終動画ファイル: {final_output}")
-            else:
-                print(f"最終動画ファイル: {video_path}")

@@ -102,7 +102,7 @@ def main() -> None:
             .set_scale(1.0)
             .start_at(0)
             .set_duration(VIDEO_DURATION)
-            .position(VIDEO_WIDTH//2, 200, anchor="center")
+            .position(VIDEO_WIDTH//2, VIDEO_HEIGHT//2, anchor="center")
             .set_crop(800, 600)
     )
     scene.add(earth)

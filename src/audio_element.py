@@ -80,7 +80,6 @@ class AudioElement(VideoBase):
                 if audio_file is not None and hasattr(audio_file, 'info'):
                     self.duration = float(audio_file.info.length)
                     self.original_duration = self.duration
-                    print(f"Audio loaded (mutagen): {self.audio_path}, duration: {self.duration:.2f}s")
                     return
             
             # librosaを使ってオーディオ情報を取得
@@ -90,7 +89,6 @@ class AudioElement(VideoBase):
                     self.duration = len(y) / sr
                     self.original_duration = self.duration
                     self.sample_rate = sr
-                    print(f"Audio loaded (librosa): {self.audio_path}, duration: {self.duration:.2f}s, sr: {sr}")
                     return
                 except Exception as librosa_error:
                     print(f"Librosa failed: {librosa_error}")
@@ -173,8 +171,7 @@ class AudioElement(VideoBase):
             Self for method chaining
         """
         self.loop_until_scene_end = loop
-        if loop:
-            print(f"BGM mode enabled for: {self.audio_path}")
+
         return self
     
     def update_duration_for_scene(self, scene_duration: float) -> None:
@@ -187,12 +184,6 @@ class AudioElement(VideoBase):
             # BGMはシーンの長さに合わせて調整（ループまたは強制終了）
             if scene_duration > 0:  # シーンに他の要素がある場合のみ
                 self.duration = scene_duration
-                if scene_duration > self.original_duration:
-                    print(f"BGM will loop: original {self.original_duration:.2f}s → extended to {scene_duration:.2f}s")
-                elif scene_duration < self.original_duration:
-                    print(f"BGM will be cut: original {self.original_duration:.2f}s → cut to {scene_duration:.2f}s")
-                else:
-                    print(f"BGM duration matches scene: {scene_duration:.2f}s")
     
     def get_effective_volume(self, audio_time: float) -> float:
         """Calculate effective volume considering fade in/out and mute status.
