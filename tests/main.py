@@ -6,6 +6,7 @@ from src.scene import Scene
 from src.text_element import TextElement
 from src.audio_element import AudioElement
 from src.image_element import ImageElement
+from src.video_element import VideoElement
 
 def create_dialogue_subtitle(text: str, start_time: float, duration: float = 4.0, 
                            font_path: Optional[str] = None, bold: bool = True) -> TextElement:
@@ -46,6 +47,7 @@ def main() -> None:
     """
     # === Assets ===
     BG_IMAGE = "sample_asset/bg.jpg"
+    BG_VIDEO = "sample_asset/bg.mp4"
     EARTH_IMAGE = "sample_asset/earth.jpg"
     REIMU_SPRITE = "sample_asset/reimu.png"
     MARISA_SPRITE = "sample_asset/marisa.png"
@@ -93,6 +95,7 @@ def main() -> None:
             .start_at(0)
             .set_duration(VIDEO_DURATION)
             .set_crop(1920, 1080)
+            # .set_loop_until_scene_end()
     )
     scene.add(bg)
     
@@ -107,34 +110,32 @@ def main() -> None:
     )
     scene.add(earth)
     
+    video = (
+        VideoElement(BG_VIDEO)
+            .set_scale(0.5)
+    )
+    scene.add(video)
+    
     # Character sprites
     # Reimu (left side)
     reimu = (
         ImageElement(REIMU_SPRITE)
-            .position(*REIMU_POS)
+            .position(200, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
             .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
-    )
-    reimu = reimu.position(
-        x = 200 - reimu.width // 2,
-        y = 700
     )
     scene.add(reimu)
     
     # Marisa (right side)
     marisa = (
         ImageElement(MARISA_SPRITE)
-            .position(*MARISA_POS)
+            .position(1720, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
             .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
-    )
-    marisa = marisa.position(
-        x = 1720 - marisa.width // 2,
-        y = 700
     )
     scene.add(marisa)
     
@@ -154,9 +155,7 @@ def main() -> None:
     
     # Add scene to master scene and render
     master_scene.add(scene)
-    print("Rendering yukkuri dialogue video...")
     master_scene.render()
-    print("Video saved as output/yukkuri_dialogue.mp4")
 
 if __name__ == "__main__":
     main()
