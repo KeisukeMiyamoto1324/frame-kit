@@ -4,7 +4,7 @@ import numpy as np
 from OpenGL.GL import *
 from PIL import Image
 from video_base import VideoBase
-from audio_element import AudioElement
+from .audio_element import AudioElement
 
 
 class VideoElement(VideoBase):

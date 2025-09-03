@@ -11,7 +11,7 @@ class Scene:
     
     def add(self, element: VideoBase):
         """要素をシーンに追加"""
-        from audio_element import AudioElement
+        from .audio_element import AudioElement
         
         self.elements.append(element)
         
@@ -26,7 +26,7 @@ class Scene:
     
     def _update_bgm_durations(self):
         """BGMモードのオーディオ要素の持続時間をシーンの長さに合わせて更新"""
-        from audio_element import AudioElement
+        from .audio_element import AudioElement
         for element in self.elements:
             if isinstance(element, AudioElement) and element.loop_until_scene_end:
                 element.update_duration_for_scene(self.duration)

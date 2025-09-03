@@ -12,9 +12,8 @@ The project uses a Python virtual environment:
 - **Virtual Environment**: `venv/` directory contains the Python virtual environment  
 - **Python Version**: Python 3.12
 - **Main Entry Points**: 
-  - `main.py`: Educational video demo with subtitles and timing
-  - `test_telop_features.py`: Advanced telop features demo (backgrounds, borders, multiline text)
-  - `test_corner_radius.py`: Corner radius demo for all element types
+  - `main.py`: Japanese dialogue video demo (yukkuri style) with character sprites and BGM
+  - Additional demos may be created for testing specific features
 
 ### Running the Application
 
@@ -22,22 +21,8 @@ The project uses a Python virtual environment:
 # Activate the virtual environment (macOS/Linux)
 source venv/bin/activate
 
-# Run the main educational video demo (2-minute computer science history)
+# Run the main Japanese dialogue demo (yukkuri style video)
 python main.py
-
-# Run telop features demo (text with backgrounds, borders, multiline)
-python tests/test_telop_features.py
-
-# Run corner radius demo (rounded corners for all element types) 
-python tests/test_corner_radius.py
-
-# Test audio functionality (video with audio controls)
-python tests/test_video_audio.py
-
-# Test BGM (background music) looping functionality
-python tests/test_bgm_simple.py
-python tests/test_bgm_comprehensive.py
-python tests/test_bgm_termination.py
 ```
 
 ### Development Commands
@@ -119,13 +104,17 @@ The architecture follows a clear inheritance structure where all visual elements
    - **Audio Processing**: Integrates with FFmpeg for audio mixing and synchronization
    - **Multi-track Audio**: Supports multiple audio sources with volume control and timing
 
+8. **Animation** (`animation.py`): Animation system for dynamic effects
+   - Abstract base class `Animation` with timing and easing controls
+   - Linear, easing, bounce, and repeating animation implementations
+   - Animation manager for coordinating multiple animations on elements
+   - Supports position, scale, rotation, and alpha animations
+
 ### Project Structure
 
 ```
 video-editer/
-├── main.py              # Educational video demo with complex subtitles
-├── test_telop_features.py # Advanced telop features demo  
-├── test_corner_radius.py # Corner radius demo
+├── main.py              # Japanese dialogue demo (yukkuri style)
 ├── video_base.py        # Base class with positioning, timing, effects
 ├── text_element.py      # Text rendering with PIL/OpenGL integration
 ├── image_element.py     # Static image rendering with scaling
@@ -133,10 +122,10 @@ video-editer/
 ├── audio_element.py     # Audio playback and BGM management  
 ├── scene.py             # Scene container for element grouping
 ├── master_scene.py      # OpenGL context and video export manager
-├── tests/               # Test files for various functionality
-├── sample_asset/        # Sample media files (images, videos)
+├── animation.py         # Animation system for dynamic effects
+├── debug_audio_timing.py # Audio debugging utilities
+├── sample_asset/        # Sample media files (images, videos, fonts, audio)
 ├── output/              # Generated MP4 video files
-├── prompt.txt           # Development notes (Japanese)
 └── venv/                # Python virtual environment
 ```
 
@@ -147,15 +136,14 @@ video-editer/
 - **Inheritance**: Common functionality in `VideoBase` (positioning, timing, effects)
 - **Composition**: Scenes group elements, MasterScene manages overall composition
 - **Frame-accurate Timing**: Video elements handle precise frame synchronization
+- **Animation System**: Elements support animations for position, scale, rotation, and alpha changes
 
 ### Output Structure
 
 - Videos are saved to the `output/` directory (auto-created)
 - Default output format is MP4 with mp4v codec
 - Example outputs: 
-  - `output/computer_science_history.mp4` (main.py educational video)
-  - `output/telop_features_demo.mp4` (advanced telop demo)
-  - `output/corner_radius_test.mp4` (corner radius demo)
+  - `output/yukkuri_dialogue.mp4` (main.py Japanese dialogue demo)
 
 ## Development Patterns
 
@@ -261,39 +249,39 @@ master_scene.add(scene)
 master_scene.render()
 ```
 
-### Subtitle Creation Pattern
+### Japanese Dialogue Creation Pattern
 
-For educational videos with synchronized subtitles, use this pattern from `main.py`:
+For dialogue videos with character sprites and timed subtitles, use this pattern from `main.py`:
 
 ```python
-def create_subtitle(text, start_time, duration=4.0):
-    """Create a centered subtitle at the bottom of the screen"""
+def create_dialogue_subtitle(text, start_time, duration=4.0, font_path=None, bold=True):
+    """Create a centered subtitle with yukkuri style earth"""
     subtitle = (
-        TextElement(text, size=48, color=(255, 255, 255))
-            .set_background((0, 0, 0), alpha=180, padding={'top': 15, 'bottom': 15, 'left': 30, 'right': 30})
-            .set_corner_radius(12)
+        TextElement(text, size=42, color=(255, 255, 255), font_path=font_path, bold=bold)
+            .set_background((0, 0, 0), alpha=200, padding={'top': 12, 'bottom': 12, 'left': 25, 'right': 25})
+            .set_corner_radius(10)
             .set_alignment('center')
-            .set_line_spacing(8)
+            .set_line_spacing(6)
             .start_at(start_time)
             .set_duration(duration)
     )
     
     # Position at bottom center of screen
     subtitle_x = (1920 - subtitle.width) // 2
-    subtitle_y = 900  # Bottom area of 1080p screen
+    subtitle_y = 950  # Bottom area for yukkuri style
     subtitle.position(subtitle_x, subtitle_y)
     
     return subtitle
 
-# Usage with timed subtitles
-subtitles = [
-    ("Welcome to today's lesson about\nthe fascinating history of computer science!", 5, 4),
-    ("Computer science didn't start with modern computers.\nIt began with ancient mathematical concepts\nand calculation methods.", 9, 5),
-    # ... more subtitles
+# Usage with Japanese dialogue and character positioning
+dialogues = [
+    ("こんにちは！今日は地球について解説するのだ！", 2, 4),
+    ("よろしくね～。地球は太陽系の第3惑星なのぜ。", 6, 4),
+    # ... more Japanese dialogue
 ]
 
-for text, start_time, duration in subtitles:
-    subtitle = create_subtitle(text, start_time, duration)
+for text, start_time, duration in dialogues:
+    subtitle = create_dialogue_subtitle(text, start_time, duration, font_path=FONT_PATH)
     scene.add(subtitle)
 ```
 
@@ -357,7 +345,7 @@ The audio system uses a composition pattern where:
 - **Hidden Window**: Renders off-screen using SDL video driver settings
 - **Environment**: Suppresses pygame support prompts and pkg_resources warnings  
 - **Dependencies**: Always use `pip3` instead of `pip` for installations
-- **Japanese Support**: Codebase includes Japanese comments and development notes in `prompt.txt`
+- **Japanese Support**: Codebase supports Japanese text rendering and includes Japanese dialogue demos
 
 ### Audio Requirements
 
@@ -366,11 +354,18 @@ The audio system uses a composition pattern where:
 - **Audio Formats**: Supports MP3, WAV, AAC, and other common formats through FFmpeg
 - **Video Audio**: Automatically extracts audio tracks from video files (MP4, MOV, etc.)
 
+### Sample Assets
+
+The `sample_asset/` directory contains example media files for testing:
+- **Images**: `bg.jpg` (background), `earth.jpg` (earth image), `reimu.png`/`marisa.png` (character sprites)
+- **Audio**: `yukkuri_bgm.mp3` (background music)
+- **Fonts**: `NotoSansJP-VariableFont_wght.ttf` (Japanese font for text rendering)
+
 ## Common Development Tasks
 
 ### Corner Radius Implementation
 
-The codebase has a known issue with corner radius implementation for images and videos. When corner radius is applied to images or videos, the content in the rounded corners should not be displayed (masked out). This is mentioned in `prompt.txt` and needs to be addressed in the rendering pipeline.
+The codebase supports corner radius for text, image, and video elements. When corner radius is applied to images or videos, the content should be properly masked to create rounded corners in the rendering pipeline.
 
 ### Video Timing and Synchronization
 
@@ -379,6 +374,47 @@ The codebase has a known issue with corner radius implementation for images and 
 - Use consistent fps settings (30 or 60) across all elements in a scene
 - Educational videos typically use 30fps for smoother text rendering
 
+### Animation System Usage
+
+Elements support animations for dynamic effects using the animation system:
+
+```python
+from animation import LinearAnimation, EasingAnimation, BounceAnimation
+
+# Position animation (slide in from left)
+position_anim = LinearAnimation(
+    start_value=(0, 300), 
+    end_value=(400, 300), 
+    duration=2.0
+)
+text_element.add_position_animation(position_anim)
+
+# Scale animation (grow from 0.5x to 1.0x)
+scale_anim = EasingAnimation(
+    start_value=0.5, 
+    end_value=1.0, 
+    duration=1.5,
+    easing_type='ease_out'
+)
+text_element.add_scale_animation(scale_anim)
+
+# Alpha fade in
+alpha_anim = LinearAnimation(
+    start_value=0, 
+    end_value=255, 
+    duration=1.0
+)
+text_element.add_alpha_animation(alpha_anim)
+
+# Rotation animation
+rotation_anim = LinearAnimation(
+    start_value=0, 
+    end_value=360, 
+    duration=3.0
+)
+image_element.add_rotation_animation(rotation_anim)
+```
+
 ## Element-Specific Methods
 
 ### All Elements (VideoBase)
@@ -386,6 +422,12 @@ The codebase has a known issue with corner radius implementation for images and 
 - `.set_duration(seconds)`: Set how long element appears
 - `.start_at(seconds)`: Set when element starts appearing
 - `.set_corner_radius(radius)`: Set corner radius for rounded corners (0 = no rounding)
+
+#### Animation Methods (All Elements)
+- `.add_position_animation(animation)`: Add position animation
+- `.add_scale_animation(animation)`: Add scale animation  
+- `.add_alpha_animation(animation)`: Add alpha/opacity animation
+- `.add_rotation_animation(animation)`: Add rotation animation
 
 ### TextElement
 - Constructor: `TextElement(text, size=50, color=(255,255,255), font_path=None)`

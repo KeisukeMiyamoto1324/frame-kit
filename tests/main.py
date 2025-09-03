@@ -1,10 +1,12 @@
+# PYTHONPATH=$(pwd)/src python3 -m tests.main
+
 import os
-from master_scene import MasterScene
-from scene import Scene
-from text_element import TextElement
-from audio_element import AudioElement
-from image_element import ImageElement
-from video_element import VideoElement
+from src.master_scene import MasterScene
+from src.scene import Scene
+from src.text_element import TextElement
+from src.audio_element import AudioElement
+from src.image_element import ImageElement
+from src.video_element import VideoElement
 
 def create_dialogue_subtitle(text, start_time, duration=4.0, font_path=None, bold=True):
     """Create a centered subtitle with yukkuri style earth"""

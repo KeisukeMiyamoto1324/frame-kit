@@ -46,7 +46,7 @@ class MasterScene:
     
     def _update_master_bgm_durations(self):
         """マスターシーン全体の長さに合わせてBGMの持続時間を更新"""
-        from audio_element import AudioElement
+        from .audio_element import AudioElement
         for audio_element in self.audio_elements:
             if isinstance(audio_element, AudioElement) and audio_element.loop_until_scene_end:
                 # マスターシーン全体の長さまでBGMを拡張
@@ -56,8 +56,8 @@ class MasterScene:
     
     def _collect_audio_elements(self, scene: Scene):
         """シーンからオーディオ要素を収集"""
-        from audio_element import AudioElement
-        from video_element import VideoElement
+        from .audio_element import AudioElement
+        from .video_element import VideoElement
         for element in scene.elements:
             if isinstance(element, AudioElement):
                 self.audio_elements.append(element)
