@@ -321,6 +321,16 @@ class VideoElement(VideoBase):
         self.texture_width = actual_width
         self.texture_height = actual_height
         
+        # Get actual render position using anchor calculation
+        # Temporarily set the current size for anchor calculation
+        original_width, original_height = self.width, self.height
+        self.width, self.height = actual_width, actual_height
+        
+        render_x, render_y, _, _ = self.get_actual_render_position()
+        
+        # Restore original size
+        self.width, self.height = original_width, original_height
+        
         # Enable alpha blending
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -332,19 +342,19 @@ class VideoElement(VideoBase):
         glBegin(GL_QUADS)
         # Bottom-left
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(self.x, self.y + self.texture_height)
+        glVertex2f(render_x, render_y + self.texture_height)
         
         # Bottom-right
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(self.x + self.texture_width, self.y + self.texture_height)
+        glVertex2f(render_x + self.texture_width, render_y + self.texture_height)
         
         # Top-right
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(self.x + self.texture_width, self.y)
+        glVertex2f(render_x + self.texture_width, render_y)
         
         # Top-left
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(self.x, self.y)
+        glVertex2f(render_x, render_y)
         glEnd()
         
         # Restore OpenGL state

@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Any, Literal
 from PIL import Image, ImageDraw, ImageFont
 from animation import Animation, AnimationManager, RepeatingAnimation
 
@@ -13,6 +13,9 @@ class VideoBase:
         self.start_time = 0.0
         self.duration = 1.0
         self.visible = True
+        
+        # 位置アンカー設定
+        self.position_anchor = 'top-left'  # 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'
         
         # 背景ボックス設定
         self.background_color = None
@@ -47,18 +50,58 @@ class VideoBase:
         self.rotation = 0.0  # 回転角度（度）
         self.scale = 1.0  # スケール値
     
-    def position(self, x: float, y: float):
-        """位置を設定"""
+    def position(self, x: float, y: float, anchor: Optional[Literal['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right']] = None):
+        """位置を設定
+        
+        Args:
+            x: X座標
+            y: Y座標
+            anchor: 位置の基準点 ('center', 'top-left', 'top-right', 'bottom-left', 'bottom-right')
+                   Noneの場合は現在の設定を維持
+        """
+        if anchor is not None:
+            self.position_anchor = anchor
+        
         self.x = x
         self.y = y
         self.base_x = x  # アニメーション用の基本位置も更新
         self.base_y = y
         return self
     
+    def _calculate_anchor_offset(self, element_width: float, element_height: float) -> Tuple[float, float]:
+        """アンカーに基づく位置オフセットを計算
+        
+        Args:
+            element_width: 要素の幅
+            element_height: 要素の高さ
+            
+        Returns:
+            (offset_x, offset_y): アンカーに基づくオフセット
+        """
+        if self.position_anchor == 'center':
+            return -element_width / 2, -element_height / 2
+        elif self.position_anchor == 'top-right':
+            return -element_width, 0
+        elif self.position_anchor == 'bottom-left':
+            return 0, -element_height
+        elif self.position_anchor == 'bottom-right':
+            return -element_width, -element_height
+        else:  # 'top-left' (default)
+            return 0, 0
+    
     def get_actual_render_position(self):
         """レンダリング時の実際の位置とサイズを取得（スケール等を考慮）"""
-        # サブクラスでオーバーライドされる
-        return self.x, self.y, getattr(self, 'width', 0), getattr(self, 'height', 0)
+        element_width = getattr(self, 'width', 0)
+        element_height = getattr(self, 'height', 0)
+        
+        # アンカーに基づく位置オフセットを計算
+        offset_x, offset_y = self._calculate_anchor_offset(element_width, element_height)
+        
+        # 実際の描画位置を計算
+        actual_x = self.x + offset_x
+        actual_y = self.y + offset_y
+        
+        return actual_x, actual_y, element_width, element_height
     
     def set_duration(self, duration: float):
         """表示時間を設定"""

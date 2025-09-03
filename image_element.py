@@ -114,14 +114,29 @@ class ImageElement(VideoBase):
         animated_props = self.get_animated_properties(time)
         
         # Calculate current position and scale with animations
-        current_x = animated_props.get('x', self.x)
-        current_y = animated_props.get('y', self.y)
         current_scale = animated_props.get('scale', 1.0)
         current_alpha = animated_props.get('alpha', 1.0)
         
         # Calculate scaled dimensions
         scaled_width = self.texture_width * current_scale
         scaled_height = self.texture_height * current_scale
+        
+        # Get actual render position using anchor calculation
+        # Temporarily set the current size for anchor calculation
+        original_width, original_height = self.width, self.height
+        self.width, self.height = scaled_width, scaled_height
+        
+        # Get position with anchor offset applied
+        render_x, render_y, _, _ = self.get_actual_render_position()
+        
+        # Apply animation offsets to the anchor-adjusted position
+        if 'x' in animated_props:
+            render_x = animated_props['x'] + self._calculate_anchor_offset(scaled_width, scaled_height)[0]
+        if 'y' in animated_props:
+            render_y = animated_props['y'] + self._calculate_anchor_offset(scaled_width, scaled_height)[1]
+            
+        # Restore original size
+        self.width, self.height = original_width, original_height
         
         # Save current OpenGL state
         glPushAttrib(GL_ALL_ATTRIB_BITS)
@@ -145,19 +160,19 @@ class ImageElement(VideoBase):
         glBegin(GL_QUADS)
         # Bottom-left
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(current_x, current_y + scaled_height)
+        glVertex2f(render_x, render_y + scaled_height)
         
         # Bottom-right
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(current_x + scaled_width, current_y + scaled_height)
+        glVertex2f(render_x + scaled_width, render_y + scaled_height)
         
         # Top-right
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(current_x + scaled_width, current_y)
+        glVertex2f(render_x + scaled_width, render_y)
         
         # Top-left
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(current_x, current_y)
+        glVertex2f(render_x, render_y)
         glEnd()
         
         # Restore OpenGL state

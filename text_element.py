@@ -247,12 +247,15 @@ class TextElement(VideoBase):
         if self.texture_id is None:
             return
         
+        # Get actual render position using anchor calculation
+        render_x, render_y, _, _ = self.get_actual_render_position()
+        
         # 変換行列を保存
         glPushMatrix()
         
         # 中心点を基準に変換を適用
-        center_x = self.x + self.texture_width / 2
-        center_y = self.y + self.texture_height / 2
+        center_x = render_x + self.texture_width / 2
+        center_y = render_y + self.texture_height / 2
         
         # 中心点に移動
         glTranslatef(center_x, center_y, 0)
@@ -285,16 +288,16 @@ class TextElement(VideoBase):
         # テクスチャ付きの四角形を描画
         glBegin(GL_QUADS)
         glTexCoord2f(0.0, 0.0)
-        glVertex2f(self.x, self.y)
+        glVertex2f(render_x, render_y)
         
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(self.x + self.texture_width, self.y)
+        glVertex2f(render_x + self.texture_width, render_y)
         
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(self.x + self.texture_width, self.y + self.texture_height)
+        glVertex2f(render_x + self.texture_width, render_y + self.texture_height)
         
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(self.x, self.y + self.texture_height)
+        glVertex2f(render_x, render_y + self.texture_height)
         glEnd()
         
         # テクスチャを無効にする

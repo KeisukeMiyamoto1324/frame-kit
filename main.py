@@ -84,11 +84,8 @@ def main():
             .set_scale(1.0)
             .start_at(0)
             .set_duration(VIDEO_DURATION)
+            .position(VIDEO_WIDTH//2, 200, anchor="center")
             .set_crop(800, 600)
-    )
-    earth = earth.position(
-        x = VIDEO_WIDTH // 2 - earth.width // 2,
-        y = VIDEO_HEIGHT // 2 - earth.height // 2
     )
     scene.add(earth)
     
