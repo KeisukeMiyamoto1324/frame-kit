@@ -3,14 +3,33 @@ from video_base import VideoBase
 
 
 class Scene:
-    """シーンクラス - 複数の要素をまとめて管理"""
-    def __init__(self):
-        self.elements: List[VideoBase] = []
-        self.start_time = 0.0
-        self.duration = 0.0
+    """Scene class for managing multiple video elements as a group.
     
-    def add(self, element: VideoBase):
-        """要素をシーンに追加"""
+    A Scene groups multiple VideoBase elements (text, images, videos, audio) and manages
+    their collective timing. Scenes can be positioned at specific times in the timeline
+    and automatically handle BGM duration adjustments.
+    
+    Attributes:
+        elements: List of VideoBase elements in this scene
+        start_time: Start time of the scene in seconds
+        duration: Total duration of the scene in seconds
+    """
+    
+    def __init__(self) -> None:
+        """Initialize a new Scene with no elements."""
+        self.elements: List[VideoBase] = []
+        self.start_time: float = 0.0
+        self.duration: float = 0.0
+    
+    def add(self, element: VideoBase) -> 'Scene':
+        """Add an element to this scene.
+        
+        Args:
+            element: VideoBase element to add (text, image, video, or audio)
+            
+        Returns:
+            Self for method chaining
+        """
         from .audio_element import AudioElement
         
         self.elements.append(element)
@@ -24,20 +43,35 @@ class Scene:
         self._update_bgm_durations()
         return self
     
-    def _update_bgm_durations(self):
-        """BGMモードのオーディオ要素の持続時間をシーンの長さに合わせて更新"""
+    def _update_bgm_durations(self) -> None:
+        """Update BGM audio element durations to match scene length.
+        
+        This method finds all audio elements with loop_until_scene_end=True
+        and updates their duration to match the scene's total duration.
+        """
         from .audio_element import AudioElement
         for element in self.elements:
             if isinstance(element, AudioElement) and element.loop_until_scene_end:
                 element.update_duration_for_scene(self.duration)
     
-    def start_at(self, time: float):
-        """シーンの開始時間を設定"""
+    def start_at(self, time: float) -> 'Scene':
+        """Set the start time of this scene.
+        
+        Args:
+            time: Start time in seconds
+            
+        Returns:
+            Self for method chaining
+        """
         self.start_time = time
         return self
     
-    def render(self, time: float):
-        """シーン内の全要素をレンダリング"""
+    def render(self, time: float) -> None:
+        """Render all elements in this scene at the given time.
+        
+        Args:
+            time: Current time in seconds (absolute time, not relative to scene)
+        """
         scene_time = time - self.start_time
         if scene_time < 0 or scene_time > self.duration:
             return

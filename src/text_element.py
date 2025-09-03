@@ -1,35 +1,69 @@
 import os
+from typing import Tuple, Optional, List, Dict, Any, Literal, Union
 import numpy as np
-from typing import Tuple
 from OpenGL.GL import *
 from PIL import Image, ImageDraw, ImageFont
 from video_base import VideoBase
 
 
 class TextElement(VideoBase):
-    """テキスト要素"""
-    def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), font_path: str = None, bold: bool = False):
-        super().__init__()
-        self.text = text
-        self.size = size
-        self.color = color
-        self.font_path = font_path
-        self.bold = bold
-        self.texture_id = None
-        self.texture_width = 0
-        self.texture_height = 0
+    """Text element for rendering text with various styling options.
+    
+    This class extends VideoBase to provide text rendering capabilities with support for
+    multi-line text, different alignments, custom fonts, colors, and styling options.
+    
+    Attributes:
+        text: The text content to display
+        size: Font size in pixels
+        color: RGB color tuple for text color
+        font_path: Optional path to custom font file
+        bold: Whether to render text in bold
+        texture_id: OpenGL texture ID for the rendered text
+        texture_width: Width of the texture in pixels
+        texture_height: Height of the texture in pixels
+        alignment: Text alignment for multi-line text
+        line_spacing: Additional spacing between lines in pixels
+    """
+    
+    def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), 
+                 font_path: Optional[str] = None, bold: bool = False) -> None:
+        """Initialize a new TextElement.
         
-        # 複数行・配置設定
-        self.alignment = 'left'  # 'left', 'center', 'right'
-        self.line_spacing = 0
+        Args:
+            text: Text content to display (supports multi-line with \n)
+            size: Font size in pixels
+            color: RGB color tuple (0-255 for each component)
+            font_path: Optional path to custom font file. Falls back to system fonts if None
+            bold: Whether to render text in bold style
+        """
+        super().__init__()
+        self.text: str = text
+        self.size: int = size
+        self.color: Tuple[int, int, int] = color
+        self.font_path: Optional[str] = font_path
+        self.bold: bool = bold
+        self.texture_id: Optional[int] = None
+        self.texture_width: int = 0
+        self.texture_height: int = 0
+        
+        # Multi-line and alignment settings
+        self.alignment: Literal['left', 'center', 'right'] = 'left'
+        self.line_spacing: int = 0
         
         self._create_text_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
     
     
-    def set_alignment(self, alignment: str):
-        """テキスト配置を設定 ('left', 'center', 'right')"""
+    def set_alignment(self, alignment: Literal['left', 'center', 'right']) -> 'TextElement':
+        """Set text alignment for multi-line text.
+        
+        Args:
+            alignment: Text alignment ('left', 'center', or 'right')
+            
+        Returns:
+            Self for method chaining
+        """
         if alignment in ['left', 'center', 'right']:
             self.alignment = alignment
             # テクスチャを再作成する必要がある
@@ -38,8 +72,15 @@ class TextElement(VideoBase):
             self.calculate_size()
         return self
     
-    def set_line_spacing(self, spacing: int):
-        """行間隔を設定"""
+    def set_line_spacing(self, spacing: int) -> 'TextElement':
+        """Set line spacing for multi-line text.
+        
+        Args:
+            spacing: Additional spacing between lines in pixels
+            
+        Returns:
+            Self for method chaining
+        """
         self.line_spacing = spacing
         # テクスチャを再作成する必要がある
         self.texture_created = False
@@ -47,13 +88,21 @@ class TextElement(VideoBase):
         self.calculate_size()
         return self
     
-    def _create_text_texture(self):
-        """テキストのテクスチャを作成"""
+    def _create_text_texture(self) -> None:
+        """Prepare text texture creation (deferred until OpenGL context is available).
+        
+        This method marks the texture as needing creation but doesn't actually create it
+        until an OpenGL context is available during rendering.
+        """
         # テクスチャ作成は後でrender時に行う（OpenGLコンテキストが必要なため）
         self.texture_created = False
     
-    def _create_texture_now(self):
-        """OpenGLコンテキスト内でテクスチャを作成"""
+    def _create_texture_now(self) -> None:
+        """Create OpenGL texture for the text within an OpenGL context.
+        
+        This method handles font loading, text measurement, multi-line rendering,
+        background/border application, and OpenGL texture creation.
+        """
         try:
             # フォントを読み込み
             if self.font_path and os.path.exists(self.font_path):
@@ -175,8 +224,12 @@ class TextElement(VideoBase):
         glBindTexture(GL_TEXTURE_2D, 0)
         self.texture_created = True
 
-    def calculate_size(self):
-        """テキストのボックスサイズを事前計算"""
+    def calculate_size(self) -> None:
+        """Pre-calculate text box size including padding and styling.
+        
+        This method measures the text content and calculates the final box size
+        including background padding and border width to set the width and height attributes.
+        """
         try:
             # フォントを読み込み
             if self.font_path and os.path.exists(self.font_path):
@@ -232,8 +285,12 @@ class TextElement(VideoBase):
         self.width = canvas_width
         self.height = canvas_height
 
-    def render(self, time: float):
-        """テキストをレンダリング"""
+    def render(self, time: float) -> None:
+        """Render the text element with OpenGL.
+        
+        Args:
+            time: Current time in seconds for animation updates
+        """
         if not self.is_visible_at(time):
             return
         
@@ -307,8 +364,11 @@ class TextElement(VideoBase):
         # 変換行列を復元
         glPopMatrix()
     
-    def __del__(self):
-        """デストラクタでテクスチャを削除"""
+    def __del__(self) -> None:
+        """Destructor to clean up OpenGL texture resources.
+        
+        Safely deletes the OpenGL texture if it was created to prevent memory leaks.
+        """
         if self.texture_id:
             try:
                 glDeleteTextures(1, [self.texture_id])

@@ -1,15 +1,26 @@
 # PYTHONPATH=$(pwd)/src python3 -m tests.main
 
-import os
+from typing import Optional
 from src.master_scene import MasterScene
 from src.scene import Scene
 from src.text_element import TextElement
 from src.audio_element import AudioElement
 from src.image_element import ImageElement
-from src.video_element import VideoElement
 
-def create_dialogue_subtitle(text, start_time, duration=4.0, font_path=None, bold=True):
-    """Create a centered subtitle with yukkuri style earth"""
+def create_dialogue_subtitle(text: str, start_time: float, duration: float = 4.0, 
+                           font_path: Optional[str] = None, bold: bool = True) -> TextElement:
+    """Create a centered subtitle with yukkuri style formatting.
+    
+    Args:
+        text: Text content for the subtitle
+        start_time: Start time in seconds
+        duration: Duration in seconds
+        font_path: Optional path to custom font
+        bold: Whether to use bold text
+        
+    Returns:
+        Configured TextElement for the subtitle
+    """
     subtitle = (
         TextElement(text, size=42, color=(255, 255, 255), font_path=font_path, bold=bold)
             .set_background((0, 0, 0), alpha=200, padding={'top': 12, 'bottom': 12, 'left': 25, 'right': 25})
@@ -27,7 +38,12 @@ def create_dialogue_subtitle(text, start_time, duration=4.0, font_path=None, bol
     
     return subtitle
 
-def main():
+def main() -> None:
+    """Main function to create and render a Japanese dialogue video.
+    
+    Creates a yukkuri-style video with character sprites, background images,
+    Japanese dialogue subtitles, and background music.
+    """
     # === Assets ===
     BG_IMAGE = "sample_asset/bg.jpg"
     EARTH_IMAGE = "sample_asset/earth.jpg"

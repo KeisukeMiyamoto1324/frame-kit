@@ -1,29 +1,54 @@
 import math
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional, Literal, Tuple
 from abc import ABC, abstractmethod
 
 
 class Animation(ABC):
-    """アニメーションの基底クラス"""
+    """Abstract base class for all animation types.
     
-    def __init__(self, duration: float = 1.0, start_time: float = 0.0, delay: float = 0.0):
-        """
+    This class provides the foundation for creating animations with timing control,
+    progress calculation, and value interpolation. All animation implementations
+    should inherit from this class.
+    
+    Attributes:
+        duration: Duration of the animation in seconds
+        start_time: Start time of the animation in seconds
+        delay: Delay before animation starts in seconds
+    """
+    
+    def __init__(self, duration: float = 1.0, start_time: float = 0.0, delay: float = 0.0) -> None:
+        """Initialize a new Animation.
+        
         Args:
-            duration: アニメーションの継続時間（秒）
-            start_time: アニメーション開始時刻（秒）
-            delay: アニメーション開始前の遅延時間（秒）
+            duration: Animation duration in seconds
+            start_time: Animation start time in seconds
+            delay: Delay before animation starts in seconds
         """
-        self.duration = duration
-        self.start_time = start_time
-        self.delay = delay
+        self.duration: float = duration
+        self.start_time: float = start_time
+        self.delay: float = delay
     
     def is_active(self, time: float) -> bool:
-        """指定時刻でアニメーションが有効かチェック"""
+        """Check if animation is active at the specified time.
+        
+        Args:
+            time: Time in seconds to check
+            
+        Returns:
+            True if animation is active at the given time
+        """
         actual_start = self.start_time + self.delay
         return actual_start <= time < (actual_start + self.duration)
     
     def get_progress(self, time: float) -> float:
-        """アニメーション進行率を計算 (0.0 - 1.0)"""
+        """Calculate animation progress at the specified time.
+        
+        Args:
+            time: Time in seconds
+            
+        Returns:
+            Progress value between 0.0 and 1.0
+        """
         if not self.is_active(time):
             actual_start = self.start_time + self.delay
             if time < actual_start:
@@ -37,26 +62,60 @@ class Animation(ABC):
     
     @abstractmethod
     def calculate_value(self, progress: float) -> Any:
-        """進行率に基づいて値を計算"""
+        """Calculate animation value based on progress.
+        
+        Args:
+            progress: Animation progress (0.0 to 1.0)
+            
+        Returns:
+            Interpolated value at the given progress
+        """
         pass
     
     def get_value_at_time(self, time: float) -> Any:
-        """指定時刻での値を取得"""
+        """Get animation value at the specified time.
+        
+        Args:
+            time: Time in seconds
+            
+        Returns:
+            Animation value at the given time
+        """
         progress = self.get_progress(time)
         return self.calculate_value(progress)
 
 
 class LinearAnimation(Animation):
-    """線形補間アニメーション"""
+    """Linear interpolation animation between start and end values.
+    
+    This animation provides smooth linear interpolation between two values
+    over the specified duration.
+    """
     
     def __init__(self, from_value: Union[float, int], to_value: Union[float, int], 
-                 duration: float = 1.0, start_time: float = 0.0, delay: float = 0.0):
+                 duration: float = 1.0, start_time: float = 0.0, delay: float = 0.0) -> None:
+        """Initialize a linear animation.
+        
+        Args:
+            from_value: Starting value
+            to_value: Ending value
+            duration: Animation duration in seconds
+            start_time: Animation start time in seconds
+            delay: Delay before animation starts in seconds
+        """
         super().__init__(duration, start_time, delay)
-        self.from_value = from_value
-        self.to_value = to_value
+        self.from_value: Union[float, int] = from_value
+        self.to_value: Union[float, int] = to_value
     
     def calculate_value(self, progress: float) -> float:
-        """線形補間で値を計算"""
+        """Calculate linear interpolated value.
+        
+        Args:
+            progress: Animation progress (0.0 to 1.0)
+            
+        Returns:
+            Linearly interpolated value between from_value and to_value
+        """
         return self.from_value + (self.to_value - self.from_value) * progress
 
 

@@ -1,4 +1,5 @@
 import os
+from typing import Optional, Tuple, Any
 import cv2
 import numpy as np
 from OpenGL.GL import *
@@ -8,23 +9,51 @@ from .audio_element import AudioElement
 
 
 class VideoElement(VideoBase):
-    """Video clip element for rendering video files"""
-    def __init__(self, video_path: str, scale: float = 1.0):
+    """Video clip element for rendering video files with audio support.
+    
+    This class extends VideoBase to provide video rendering capabilities with support for
+    various video formats, frame-accurate timing, scaling, cropping, borders, and automatic
+    audio track integration.
+    
+    Attributes:
+        video_path: Path to the video file to load
+        scale: Scale multiplier for video size
+        texture_id: OpenGL texture ID for the current frame
+        texture_width: Width of the OpenGL texture
+        texture_height: Height of the OpenGL texture
+        original_width: Original width of the source video
+        original_height: Original height of the source video
+        video_capture: OpenCV VideoCapture object
+        fps: Frames per second of the video
+        total_frames: Total number of frames in the video
+        current_frame_data: Current frame data as numpy array
+        audio_element: Associated AudioElement for video soundtrack
+        loop_until_scene_end: Whether to loop video until scene ends
+        original_duration: Original duration of the video file
+    """
+    
+    def __init__(self, video_path: str, scale: float = 1.0) -> None:
+        """Initialize a new VideoElement.
+        
+        Args:
+            video_path: Path to the video file (supports common formats like MP4, MOV, etc.)
+            scale: Scale multiplier for the video (1.0 = original size, 0.5 = half size, etc.)
+        """
         super().__init__()
-        self.video_path = video_path
-        self.scale = scale
-        self.texture_id = None
-        self.texture_width = 0
-        self.texture_height = 0
-        self.original_width = 0
-        self.original_height = 0
-        self.video_capture = None
-        self.fps = 30.0
-        self.total_frames = 0
-        self.current_frame_data = None
-        self.audio_element = None
-        self.loop_until_scene_end = False
-        self.original_duration = 0.0
+        self.video_path: str = video_path
+        self.scale: float = scale
+        self.texture_id: Optional[int] = None
+        self.texture_width: int = 0
+        self.texture_height: int = 0
+        self.original_width: int = 0
+        self.original_height: int = 0
+        self.video_capture: Optional[cv2.VideoCapture] = None
+        self.fps: float = 30.0
+        self.total_frames: int = 0
+        self.current_frame_data: Optional[np.ndarray] = None
+        self.audio_element: Optional[AudioElement] = None
+        self.loop_until_scene_end: bool = False
+        self.original_duration: float = 0.0
         self._create_video_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
@@ -32,14 +61,22 @@ class VideoElement(VideoBase):
         self.audio_element = None
         self._audio_element_created = False
     
-    def _create_video_texture(self):
-        """Initialize video texture creation"""
+    def _create_video_texture(self) -> None:
+        """Initialize video texture creation (deferred until OpenGL context is available).
+        
+        This method loads video metadata and marks the texture as needing creation
+        but doesn't actually create it until an OpenGL context is available during rendering.
+        """
         # Texture creation is deferred until render time (requires OpenGL context)
         self.texture_created = False
         self._load_video_info()
     
-    def _load_video_info(self):
-        """Load video file information"""
+    def _load_video_info(self) -> None:
+        """Load video file information and properties.
+        
+        This method opens the video file, extracts metadata like dimensions, framerate,
+        and frame count, and calculates the video duration.
+        """
         if not os.path.exists(self.video_path):
             print(f"Warning: Video file not found: {self.video_path}")
             return
@@ -76,8 +113,12 @@ class VideoElement(VideoBase):
         except Exception as e:
             print(f"Error loading video info {self.video_path}: {e}")
     
-    def _create_audio_element(self):
-        """Create audio element from video file"""
+    def _create_audio_element(self) -> None:
+        """Create audio element from video file soundtrack.
+        
+        This method creates an AudioElement instance to handle the video's audio track,
+        synchronizing it with the video's timing and playback settings.
+        """
         if self._audio_element_created:
             return
             
@@ -92,20 +133,32 @@ class VideoElement(VideoBase):
             print(f"Warning: Could not create audio element for {self.video_path}: {e}")
             self.audio_element = None
     
-    def _sync_audio_timing(self):
-        """Synchronize audio element timing with video element"""
+    def _sync_audio_timing(self) -> None:
+        """Synchronize audio element timing with video element.
+        
+        Ensures that the associated audio element has the same start time and
+        duration as the video element for perfect synchronization.
+        """
         if self.audio_element:
             print(f"Syncing audio timing: start_time={self.start_time}, duration={self.duration}")
             self.audio_element.start_at(self.start_time)
             self.audio_element.set_duration(self.duration)
             print(f"Audio element timing set: start_time={self.audio_element.start_time}, duration={self.audio_element.duration}")
     
-    def get_audio_element(self):
-        """Get the associated audio element"""
+    def get_audio_element(self) -> Optional[AudioElement]:
+        """Get the associated audio element for this video.
+        
+        Returns:
+            AudioElement instance if audio is available, None otherwise
+        """
         return self.audio_element
     
-    def _create_texture_now(self):
-        """Create OpenGL texture"""
+    def _create_texture_now(self) -> None:
+        """Create OpenGL texture for video frames.
+        
+        This method creates an OpenGL texture that will be updated with video frame data
+        during rendering. The texture is configured for efficient frame updates.
+        """
         if self.texture_id is None:
             self.texture_id = glGenTextures(1)
         
@@ -120,8 +173,15 @@ class VideoElement(VideoBase):
         glBindTexture(GL_TEXTURE_2D, 0)
         self.texture_created = True
     
-    def _get_frame_at_time(self, video_time: float):
-        """Get video frame at specific time"""
+    def _get_frame_at_time(self, video_time: float) -> Optional[np.ndarray]:
+        """Get video frame at a specific time.
+        
+        Args:
+            video_time: Time in seconds within the video to get the frame from
+            
+        Returns:
+            Frame data as numpy array in RGBA format, or None if frame unavailable
+        """
         if self.video_capture is None or not self.video_capture.isOpened():
             return None
         
@@ -174,8 +234,15 @@ class VideoElement(VideoBase):
         
         return frame
     
-    def set_scale(self, scale: float):
-        """Set video scale"""
+    def set_scale(self, scale: float) -> 'VideoElement':
+        """Set video scale multiplier.
+        
+        Args:
+            scale: Scale multiplier (1.0 = original size, 0.5 = half size, 2.0 = double size)
+            
+        Returns:
+            Self for method chaining
+        """
         self.scale = scale
         # Update texture dimensions (border/background will be applied at render time)
         if hasattr(self, 'original_width'):
@@ -192,76 +259,138 @@ class VideoElement(VideoBase):
             self.height = self.texture_height + border_size
         return self
     
-    def start_at(self, start_time: float):
-        """Set start time and update audio element timing"""
+    def start_at(self, start_time: float) -> 'VideoElement':
+        """Set start time and synchronize with audio element.
+        
+        Args:
+            start_time: Start time in seconds
+            
+        Returns:
+            Self for method chaining
+        """
         super().start_at(start_time)
         self._ensure_audio_element()
         self._sync_audio_timing()
         return self
     
-    def set_duration(self, duration: float):
-        """Set duration and update audio element timing"""
+    def set_duration(self, duration: float) -> 'VideoElement':
+        """Set duration and synchronize with audio element.
+        
+        Args:
+            duration: Duration in seconds
+            
+        Returns:
+            Self for method chaining
+        """
         super().set_duration(duration)
         self._ensure_audio_element()
         self._sync_audio_timing()
         return self
     
-    def _ensure_audio_element(self):
-        """Ensure audio element is created before using it"""
+    def _ensure_audio_element(self) -> None:
+        """Ensure audio element is created before using it.
+        
+        Creates the audio element if it hasn't been created yet. This is used
+        to lazily initialize audio support when audio-related methods are called.
+        """
         if not self._audio_element_created:
             self._create_audio_element()
     
-    def set_volume(self, volume: float):
-        """Set audio volume (0.0 to 1.0)"""
+    def set_volume(self, volume: float) -> 'VideoElement':
+        """Set audio volume level.
+        
+        Args:
+            volume: Volume level (0.0 = muted, 1.0 = full volume, >1.0 = amplified)
+            
+        Returns:
+            Self for method chaining
+        """
         self._ensure_audio_element()
         if self.audio_element:
             self.audio_element.set_volume(volume)
         return self
     
-    def set_audio_fade_in(self, duration: float):
-        """Set audio fade in duration"""
+    def set_audio_fade_in(self, duration: float) -> 'VideoElement':
+        """Set audio fade-in duration.
+        
+        Args:
+            duration: Fade-in duration in seconds
+            
+        Returns:
+            Self for method chaining
+        """
         self._ensure_audio_element()
         if self.audio_element:
             self.audio_element.set_fade_in(duration)
         return self
     
-    def set_audio_fade_out(self, duration: float):
-        """Set audio fade out duration"""
+    def set_audio_fade_out(self, duration: float) -> 'VideoElement':
+        """Set audio fade-out duration.
+        
+        Args:
+            duration: Fade-out duration in seconds
+            
+        Returns:
+            Self for method chaining
+        """
         self._ensure_audio_element()
         if self.audio_element:
             self.audio_element.set_fade_out(duration)
         return self
     
-    def mute_audio(self):
-        """Mute video audio"""
+    def mute_audio(self) -> 'VideoElement':
+        """Mute video audio track.
+        
+        Returns:
+            Self for method chaining
+        """
         self._ensure_audio_element()
         if self.audio_element:
             self.audio_element.mute()
         return self
     
-    def unmute_audio(self):
-        """Unmute video audio"""
+    def unmute_audio(self) -> 'VideoElement':
+        """Unmute video audio track.
+        
+        Returns:
+            Self for method chaining
+        """
         self._ensure_audio_element()
         if self.audio_element:
             self.audio_element.unmute()
         return self
     
-    def get_audio_volume(self):
-        """Get current audio volume"""
+    def get_audio_volume(self) -> float:
+        """Get current audio volume level.
+        
+        Returns:
+            Current volume level (0.0 = muted, 1.0 = full volume)
+        """
         self._ensure_audio_element()
         if self.audio_element:
             return self.audio_element.volume
         return 0.0
     
-    def set_loop_until_scene_end(self, loop: bool = True):
-        """Set whether to loop video until scene/master scene ends"""
+    def set_loop_until_scene_end(self, loop: bool = True) -> 'VideoElement':
+        """Set whether to loop video until scene ends.
+        
+        Args:
+            loop: If True, video will loop continuously until the scene ends
+            
+        Returns:
+            Self for method chaining
+        """
         self.loop_until_scene_end = loop
         if loop:
             print(f"Video loop mode enabled for: {self.video_path}")
         return self
     
-    def update_duration_for_scene(self, scene_duration: float):
-        """Update duration to match scene duration when in loop mode"""
+    def update_duration_for_scene(self, scene_duration: float) -> None:
+        """Update duration to match scene duration when in loop mode.
+        
+        Args:
+            scene_duration: Duration of the containing scene in seconds
+        """
         if self.loop_until_scene_end:
             # ビデオはシーンの長さに合わせて調整（ループまたは強制終了）
             if scene_duration > 0:  # シーンに他の要素がある場合のみ
@@ -278,8 +407,12 @@ class VideoElement(VideoBase):
                 if self.audio_element and hasattr(self.audio_element, 'update_duration_for_scene'):
                     self.audio_element.update_duration_for_scene(scene_duration)
     
-    def render(self, time: float):
-        """Render video frame"""
+    def render(self, time: float) -> None:
+        """Render video frame at the current time.
+        
+        Args:
+            time: Current time in seconds for frame selection and animation updates
+        """
         if not self.is_visible_at(time):
             return
         
@@ -360,8 +493,12 @@ class VideoElement(VideoBase):
         # Restore OpenGL state
         glPopAttrib()
 
-    def calculate_size(self):
-        """動画のボックスサイズを事前計算"""
+    def calculate_size(self) -> None:
+        """Pre-calculate video box size including scaling, cropping, padding and styling.
+        
+        This method calculates the final box size based on video dimensions, scaling,
+        cropping, background padding and border width to set the width and height attributes.
+        """
         if not hasattr(self, 'original_width') or self.original_width == 0:
             self.width = 0
             self.height = 0
@@ -391,8 +528,12 @@ class VideoElement(VideoBase):
         self.width = canvas_width
         self.height = canvas_height
     
-    def __del__(self):
-        """Destructor to clean up resources"""
+    def __del__(self) -> None:
+        """Destructor to clean up video and OpenGL texture resources.
+        
+        Releases the OpenCV VideoCapture object and safely deletes the OpenGL texture
+        if they were created to prevent memory leaks.
+        """
         if self.video_capture:
             self.video_capture.release()
         

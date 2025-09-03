@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import numpy as np
 from OpenGL.GL import *
 from PIL import Image
@@ -6,27 +7,55 @@ from video_base import VideoBase
 
 
 class ImageElement(VideoBase):
-    """Image element for rendering image files"""
-    def __init__(self, image_path: str, scale: float = 1.0):
+    """Image element for rendering image files with scaling and styling support.
+    
+    This class extends VideoBase to provide image rendering capabilities with support for
+    various image formats, scaling, cropping, corner radius, borders, and backgrounds.
+    
+    Attributes:
+        image_path: Path to the image file to load
+        scale: Scale multiplier for the image size
+        texture_id: OpenGL texture ID for the loaded image
+        texture_width: Width of the OpenGL texture
+        texture_height: Height of the OpenGL texture
+        original_width: Original width of the source image
+        original_height: Original height of the source image
+    """
+    
+    def __init__(self, image_path: str, scale: float = 1.0) -> None:
+        """Initialize a new ImageElement.
+        
+        Args:
+            image_path: Path to the image file (supports common formats like PNG, JPG, etc.)
+            scale: Scale multiplier for the image (1.0 = original size, 0.5 = half size, etc.)
+        """
         super().__init__()
-        self.image_path = image_path
-        self.scale = scale
-        self.texture_id = None
-        self.texture_width = 0
-        self.texture_height = 0
-        self.original_width = 0
-        self.original_height = 0
+        self.image_path: str = image_path
+        self.scale: float = scale
+        self.texture_id: Optional[int] = None
+        self.texture_width: int = 0
+        self.texture_height: int = 0
+        self.original_width: int = 0
+        self.original_height: int = 0
         self._create_image_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
     
-    def _create_image_texture(self):
-        """Initialize image texture creation"""
+    def _create_image_texture(self) -> None:
+        """Initialize image texture creation (deferred until OpenGL context is available).
+        
+        This method marks the texture as needing creation but doesn't actually create it
+        until an OpenGL context is available during rendering.
+        """
         # Texture creation is deferred until render time (requires OpenGL context)
         self.texture_created = False
     
-    def _create_texture_now(self):
-        """Create texture within OpenGL context"""
+    def _create_texture_now(self) -> None:
+        """Create OpenGL texture for the image within an OpenGL context.
+        
+        This method handles image loading, format conversion, scaling, cropping,
+        corner radius, border/background application, and OpenGL texture creation.
+        """
         if not os.path.exists(self.image_path):
             print(f"Warning: Image file not found: {self.image_path}")
             return
@@ -88,8 +117,15 @@ class ImageElement(VideoBase):
             print(f"Error loading image {self.image_path}: {e}")
             self.texture_created = False
     
-    def set_scale(self, scale: float):
-        """Set image scale"""
+    def set_scale(self, scale: float) -> 'ImageElement':
+        """Set image scale multiplier.
+        
+        Args:
+            scale: Scale multiplier (1.0 = original size, 0.5 = half size, 2.0 = double size)
+            
+        Returns:
+            Self for method chaining
+        """
         self.scale = scale
         # Need to recreate texture
         if self.texture_created:
@@ -98,8 +134,12 @@ class ImageElement(VideoBase):
         self.calculate_size()
         return self
     
-    def render(self, time: float):
-        """Render image"""
+    def render(self, time: float) -> None:
+        """Render the image element with OpenGL.
+        
+        Args:
+            time: Current time in seconds for animation updates
+        """
         if not self.is_visible_at(time):
             return
         
@@ -178,8 +218,12 @@ class ImageElement(VideoBase):
         # Restore OpenGL state
         glPopAttrib()
 
-    def calculate_size(self):
-        """画像のボックスサイズを事前計算"""
+    def calculate_size(self) -> None:
+        """Pre-calculate image box size including scaling, cropping, padding and styling.
+        
+        This method reads image metadata and calculates the final box size
+        including scaling, cropping, background padding and border width to set the width and height attributes.
+        """
         if not os.path.exists(self.image_path):
             self.width = 0
             self.height = 0
@@ -220,8 +264,11 @@ class ImageElement(VideoBase):
             self.width = 0
             self.height = 0
     
-    def __del__(self):
-        """Destructor to clean up texture"""
+    def __del__(self) -> None:
+        """Destructor to clean up OpenGL texture resources.
+        
+        Safely deletes the OpenGL texture if it was created to prevent memory leaks.
+        """
         if self.texture_id:
             try:
                 glDeleteTextures(1, [self.texture_id])
