@@ -8,12 +8,13 @@ from video_base import VideoBase
 
 class TextElement(VideoBase):
     """テキスト要素"""
-    def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), font_path: str = None):
+    def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), font_path: str = None, bold: bool = False):
         super().__init__()
         self.text = text
         self.size = size
         self.color = color
         self.font_path = font_path
+        self.bold = bold
         self.texture_id = None
         self.texture_width = 0
         self.texture_height = 0
@@ -127,11 +128,19 @@ class TextElement(VideoBase):
                 else:  # right
                     x_pos = content_width - line_data['width']
                 
-                # テキストを描画
-                draw.text((x_pos, current_y + line_data['y_offset']), 
-                         line_data['text'], 
-                         font=font, 
-                         fill=(*self.color, 255))
+                # テキストを描画（太字の場合はstroke_widthを使用）
+                if self.bold:
+                    draw.text((x_pos, current_y + line_data['y_offset']), 
+                             line_data['text'], 
+                             font=font, 
+                             fill=(*self.color, 255),
+                             stroke_width=2,
+                             stroke_fill=(*self.color, 255))
+                else:
+                    draw.text((x_pos, current_y + line_data['y_offset']), 
+                             line_data['text'], 
+                             font=font, 
+                             fill=(*self.color, 255))
             
             # 次の行の位置を計算
             current_y += line_data['height'] + self.line_spacing

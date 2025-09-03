@@ -23,6 +23,8 @@ class VideoElement(VideoBase):
         self.total_frames = 0
         self.current_frame_data = None
         self.audio_element = None
+        self.loop_until_scene_end = False
+        self.original_duration = 0.0
         self._create_video_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
@@ -67,6 +69,7 @@ class VideoElement(VideoBase):
             if self.fps > 0 and self.total_frames > 0:
                 video_duration = self.total_frames / self.fps
                 self.duration = video_duration
+                self.original_duration = video_duration
             
             print(f"Video loaded: {self.original_width}x{self.original_height}, {self.fps} fps, {self.total_frames} frames, duration: {self.duration:.2f}s")
             
@@ -250,6 +253,31 @@ class VideoElement(VideoBase):
             return self.audio_element.volume
         return 0.0
     
+    def set_loop_until_scene_end(self, loop: bool = True):
+        """Set whether to loop video until scene/master scene ends"""
+        self.loop_until_scene_end = loop
+        if loop:
+            print(f"Video loop mode enabled for: {self.video_path}")
+        return self
+    
+    def update_duration_for_scene(self, scene_duration: float):
+        """Update duration to match scene duration when in loop mode"""
+        if self.loop_until_scene_end:
+            # ビデオはシーンの長さに合わせて調整（ループまたは強制終了）
+            if scene_duration > 0:  # シーンに他の要素がある場合のみ
+                self.duration = scene_duration
+                if scene_duration > self.original_duration:
+                    print(f"Video will loop: original {self.original_duration:.2f}s → extended to {scene_duration:.2f}s")
+                elif scene_duration < self.original_duration:
+                    print(f"Video will be cut: original {self.original_duration:.2f}s → cut to {scene_duration:.2f}s")
+                else:
+                    print(f"Video duration matches scene: {scene_duration:.2f}s")
+                
+                # オーディオ要素も同期
+                self._ensure_audio_element()
+                if self.audio_element and hasattr(self.audio_element, 'update_duration_for_scene'):
+                    self.audio_element.update_duration_for_scene(scene_duration)
+    
     def render(self, time: float):
         """Render video frame"""
         if not self.is_visible_at(time):
@@ -267,6 +295,10 @@ class VideoElement(VideoBase):
         
         # Calculate video time (time within the video clip)
         video_time = time - self.start_time
+        
+        # Handle looping if enabled
+        if self.loop_until_scene_end and video_time >= self.original_duration:
+            video_time = video_time % self.original_duration
         
         # Get current frame
         frame_data = self._get_frame_at_time(video_time)
