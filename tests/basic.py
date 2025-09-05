@@ -1,8 +1,8 @@
 # PYTHONPATH=$(pwd)/src python3 -m tests.basic
 
 from typing import Optional
-from framekit.master_scene import MasterScene
-from framekit.scene import Scene
+from framekit.master_scene_element import MasterScene
+from framekit.scene_element import Scene
 from framekit.text_element import TextElement
 from framekit.audio_element import AudioElement
 from framekit.image_element import ImageElement

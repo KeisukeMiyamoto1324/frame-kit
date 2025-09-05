@@ -6,7 +6,7 @@ from OpenGL.GL import *
 from PIL import Image
 from .video_base import VideoBase
 from .audio_element import AudioElement
-from .master_scene import has_audio_stream
+from .master_scene_element import has_audio_stream
 
 
 class VideoElement(VideoBase):

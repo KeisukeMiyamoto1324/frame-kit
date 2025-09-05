@@ -5,7 +5,7 @@ from typing import List
 from tqdm import tqdm
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from .scene import Scene
+from .scene_element import Scene
 
 # Pygameの警告を抑制
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
