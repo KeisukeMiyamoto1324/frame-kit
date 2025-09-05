@@ -31,27 +31,35 @@ class Scene:
             Self for method chaining
         """
         from .audio_element import AudioElement
+        from .video_element import VideoElement
         
         self.elements.append(element)
         
-        # BGMモードでないオーディオ要素と他の要素のみがシーン時間に影響
-        if not (isinstance(element, AudioElement) and getattr(element, 'loop_until_scene_end', False)):
+        # BGMモードでないオーディオ要素とループモードでないビデオ要素と他の要素のみがシーン時間に影響
+        is_bgm_audio = isinstance(element, AudioElement) and getattr(element, 'loop_until_scene_end', False)
+        is_loop_video = isinstance(element, VideoElement) and (getattr(element, 'loop_until_scene_end', False) or getattr(element, '_wants_scene_duration', False))
+        
+        if not (is_bgm_audio or is_loop_video):
             element_end_time = element.start_time + element.duration
             self.duration = max(self.duration, element_end_time)
         
-        # BGMモードのオーディオ要素の持続時間を更新（シーン時間決定後）
-        self._update_bgm_durations()
+        # BGMモードのオーディオ要素とループモードのビデオ要素の持続時間を更新（シーン時間決定後）
+        self._update_loop_element_durations()
         return self
     
-    def _update_bgm_durations(self) -> None:
-        """Update BGM audio element durations to match scene length.
+    def _update_loop_element_durations(self) -> None:
+        """Update loop element durations to match scene length.
         
-        This method finds all audio elements with loop_until_scene_end=True
+        This method finds all audio and video elements with loop_until_scene_end=True
         and updates their duration to match the scene's total duration.
         """
         from .audio_element import AudioElement
+        from .video_element import VideoElement
+        
         for element in self.elements:
             if isinstance(element, AudioElement) and element.loop_until_scene_end:
+                element.update_duration_for_scene(self.duration)
+            elif isinstance(element, VideoElement) and (element.loop_until_scene_end or getattr(element, '_wants_scene_duration', False)):
                 element.update_duration_for_scene(self.duration)
     
     def start_at(self, time: float) -> 'Scene':

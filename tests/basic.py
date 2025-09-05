@@ -59,7 +59,7 @@ def main() -> None:
     VIDEO_WIDTH = 1920
     VIDEO_HEIGHT = 1080
     VIDEO_FPS = 30
-    VIDEO_DURATION = 60
+    # VIDEO_DURATION = 60
     
     # === Character Positions ===
     REIMU_POS = (100, 200)
@@ -104,7 +104,7 @@ def main() -> None:
         ImageElement(EARTH_IMAGE)
             .set_scale(1.0)
             .start_at(0)
-            .set_duration(VIDEO_DURATION)
+            # .set_duration(VIDEO_DURATION)
             .position(VIDEO_WIDTH//2, VIDEO_HEIGHT//2, anchor="center")
             .set_crop(800, 600)
     )
@@ -123,7 +123,7 @@ def main() -> None:
             .position(200, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
-            .set_duration(VIDEO_DURATION)
+            # .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
     )
     scene.add(reimu)
@@ -134,7 +134,7 @@ def main() -> None:
             .position(1720, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
-            .set_duration(VIDEO_DURATION)
+            # .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
     )
     scene.add(marisa)

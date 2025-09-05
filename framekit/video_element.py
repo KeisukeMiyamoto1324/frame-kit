@@ -55,6 +55,7 @@ class VideoElement(VideoBase):
         self.audio_element: Optional[AudioElement] = None
         self.loop_until_scene_end: bool = False
         self.original_duration: float = 0.0
+        self._wants_scene_duration: bool = False
         self._create_video_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
@@ -379,6 +380,10 @@ class VideoElement(VideoBase):
     def set_loop_until_scene_end(self, loop: bool = True) -> 'VideoElement':
         """Set whether to loop video until scene ends.
         
+        When enabled, the video will automatically adjust its duration to match
+        the parent scene's duration, either by looping (if scene is longer than video)
+        or cutting (if scene is shorter than video).
+        
         Args:
             loop: If True, video will loop continuously until the scene ends
             
@@ -386,6 +391,12 @@ class VideoElement(VideoBase):
             Self for method chaining
         """
         self.loop_until_scene_end = loop
+        
+        # If enabling loop mode and no explicit duration is set, 
+        # we'll let the scene determine our duration
+        if loop and hasattr(self, 'original_duration') and self.original_duration > 0:
+            # Mark that we want to inherit scene duration
+            self._wants_scene_duration = True
 
         return self
     
@@ -395,7 +406,7 @@ class VideoElement(VideoBase):
         Args:
             scene_duration: Duration of the containing scene in seconds
         """
-        if self.loop_until_scene_end:
+        if self.loop_until_scene_end or self._wants_scene_duration:
             # ビデオはシーンの長さに合わせて調整（ループまたは強制終了）
             if scene_duration > 0:  # シーンに他の要素がある場合のみ
                 self.duration = scene_duration
@@ -427,9 +438,16 @@ class VideoElement(VideoBase):
         # Calculate video time (time within the video clip)
         video_time = time - self.start_time
         
-        # Handle looping if enabled
-        if self.loop_until_scene_end and video_time >= self.original_duration:
-            video_time = video_time % self.original_duration
+        # Handle looping or cutting when scene duration adjustment is enabled
+        if self.loop_until_scene_end or self._wants_scene_duration:
+            if self.original_duration > 0:
+                if video_time >= self.original_duration:
+                    # Loop the video by taking modulo of the original duration
+                    video_time = video_time % self.original_duration
+                elif video_time < 0:
+                    # Handle negative time (shouldn't normally happen, but safety check)
+                    video_time = 0
+                # If video_time is within original duration, use it as-is (handles cutting case)
         
         # Get current frame
         frame_data = self._get_frame_at_time(video_time)
