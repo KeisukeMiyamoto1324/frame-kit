@@ -1,4 +1,4 @@
-# PYTHONPATH=$(pwd)/src python3 -m tests.basic
+# PYTHONPATH=$(pwd) python3 -m tests.basic
 
 from typing import Optional
 from framekit.master_scene_element import MasterScene
@@ -93,7 +93,7 @@ def main() -> None:
         VideoElement(BG_VIDEO)
             .set_scale(1.0)
             .start_at(0)
-            .set_duration(VIDEO_DURATION)
+            # .set_duration(VIDEO_DURATION)
             .set_crop(1920, 1080)
             .set_loop_until_scene_end()
     )
