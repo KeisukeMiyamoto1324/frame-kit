@@ -23,7 +23,7 @@ def create_dialogue_subtitle(text: str, start_time: float, duration: float = 4.0
         Configured TextElement for the subtitle
     """
     subtitle = (
-        TextElement(text, size=42, color=(255, 255, 255), font_path=font_path, bold=bold)
+        TextElement(text, size=30, color=(255, 255, 255), font_path=font_path)
             .set_background((0, 0, 0), alpha=200, padding={'top': 12, 'bottom': 12, 'left': 25, 'right': 25})
             .set_corner_radius(10)
             .set_alignment('center')
@@ -83,7 +83,7 @@ def main() -> None:
     ]
     
     # Create master scene
-    master_scene = MasterScene(width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS, quality="low")
+    master_scene = MasterScene(width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS, quality="medium")
     master_scene.set_output(OUTPUT_FILE)
     
     # Create main scene
@@ -107,7 +107,7 @@ def main() -> None:
             # .set_duration(VIDEO_DURATION)
             .position(VIDEO_WIDTH//2, VIDEO_HEIGHT//2, anchor="center")
             .set_crop(800, 600)
-            .set_corner_radius(20)
+            .set_corner_radius(40)
             .set_loop_until_scene_end()
     )
     scene.add(earth)

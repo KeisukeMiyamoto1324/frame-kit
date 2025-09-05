@@ -26,7 +26,7 @@ class TextElement(VideoBase):
     """
     
     def __init__(self, text: str, size: int = 50, color: Tuple[int, int, int] = (255, 255, 255), 
-                 font_path: Optional[str] = None, bold: bool = False) -> None:
+                 font_path: Optional[str] = None, bold: bool = False, quality_scale: int = 1) -> None:
         """Initialize a new TextElement.
         
         Args:
@@ -35,6 +35,7 @@ class TextElement(VideoBase):
             color: RGB color tuple (0-255 for each component)
             font_path: Optional path to custom font file. Falls back to system fonts if None
             bold: Whether to render text in bold style
+            quality_scale: Scale factor for texture quality (1=normal, 2=2x, 4=4x)
         """
         super().__init__()
         self.text: str = text
@@ -42,6 +43,7 @@ class TextElement(VideoBase):
         self.color: Tuple[int, int, int] = color
         self.font_path: Optional[str] = font_path
         self.bold: bool = bold
+        self.quality_scale: int = quality_scale
         self.texture_id: Optional[int] = None
         self.texture_width: int = 0
         self.texture_height: int = 0
@@ -104,15 +106,18 @@ class TextElement(VideoBase):
         background/border application, and OpenGL texture creation.
         """
         try:
+            # 品質スケールを適用してフォントサイズを拡大
+            scaled_size = self.size * self.quality_scale
+            
             # フォントを読み込み
             if self.font_path and os.path.exists(self.font_path):
-                font = ImageFont.truetype(self.font_path, self.size)
+                font = ImageFont.truetype(self.font_path, scaled_size)
             else:
                 try:
-                    font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", self.size)
+                    font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", scaled_size)
                 except:
                     try:
-                        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", self.size)
+                        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", scaled_size)
                     except:
                         font = ImageFont.load_default()
         except:
@@ -194,10 +199,26 @@ class TextElement(VideoBase):
             # 次の行の位置を計算
             current_y += line_data['height'] + self.line_spacing
         
+        # 品質スケール適用のために一時的にパディングと角丸をスケール
+        original_padding = self.padding.copy()
+        original_corner_radius = self.corner_radius
+        original_border_width = self.border_width
+        
+        # 品質スケールを適用
+        if self.quality_scale > 1:
+            self.padding = {k: v * self.quality_scale for k, v in self.padding.items()}
+            self.corner_radius = self.corner_radius * self.quality_scale
+            self.border_width = self.border_width * self.quality_scale
+        
         # 背景と枠線を適用
         img = self._apply_border_and_background_to_image(img)
         
-        # 実際のテクスチャサイズを更新
+        # パディングと角丸を元に戻す
+        self.padding = original_padding
+        self.corner_radius = original_corner_radius
+        self.border_width = original_border_width
+        
+        # 実際のテクスチャサイズを更新（高品質版）
         self.texture_width = img.size[0]
         self.texture_height = img.size[1]
         
@@ -231,6 +252,7 @@ class TextElement(VideoBase):
         including background padding and border width to set the width and height attributes.
         """
         try:
+            # calculate_size では元のサイズを使用（品質スケールしない）
             # フォントを読み込み
             if self.font_path and os.path.exists(self.font_path):
                 font = ImageFont.truetype(self.font_path, self.size)
@@ -307,12 +329,16 @@ class TextElement(VideoBase):
         # Get actual render position using anchor calculation
         render_x, render_y, _, _ = self.get_actual_render_position()
         
+        # 品質スケールを考慮した表示サイズを計算
+        display_width = self.texture_width / self.quality_scale
+        display_height = self.texture_height / self.quality_scale
+        
         # 変換行列を保存
         glPushMatrix()
         
         # 中心点を基準に変換を適用
-        center_x = render_x + self.texture_width / 2
-        center_y = render_y + self.texture_height / 2
+        center_x = render_x + display_width / 2
+        center_y = render_y + display_height / 2
         
         # 中心点に移動
         glTranslatef(center_x, center_y, 0)
@@ -342,19 +368,19 @@ class TextElement(VideoBase):
             alpha_value = self.background_alpha / 255.0
         glColor4f(1.0, 1.0, 1.0, alpha_value)
         
-        # テクスチャ付きの四角形を描画
+        # テクスチャ付きの四角形を描画（品質スケールを考慮）
         glBegin(GL_QUADS)
         glTexCoord2f(0.0, 0.0)
         glVertex2f(render_x, render_y)
         
         glTexCoord2f(1.0, 0.0)
-        glVertex2f(render_x + self.texture_width, render_y)
+        glVertex2f(render_x + display_width, render_y)
         
         glTexCoord2f(1.0, 1.0)
-        glVertex2f(render_x + self.texture_width, render_y + self.texture_height)
+        glVertex2f(render_x + display_width, render_y + display_height)
         
         glTexCoord2f(0.0, 1.0)
-        glVertex2f(render_x, render_y + self.texture_height)
+        glVertex2f(render_x, render_y + display_height)
         glEnd()
         
         # テクスチャを無効にする

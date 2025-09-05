@@ -1,7 +1,7 @@
 import os
 import cv2
 import numpy as np
-from typing import List
+from typing import List, Literal
 from tqdm import tqdm
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -70,7 +70,7 @@ def has_audio_stream(video_path: str) -> bool:
 
 class MasterScene:
     """マスターシーンクラス - 全体の動画を管理"""
-    def __init__(self, width: int = 1920, height: int = 1080, fps: int = 60, quality: str = "medium"):
+    def __init__(self, width: int = 1920, height: int = 1080, fps: int = 60, quality: Literal["low", "medium", "high"] = "medium"):
         self.width = width
         self.height = height
         self.fps = fps
@@ -155,6 +155,20 @@ class MasterScene:
         self.render_width = self.width * self.render_scale
         self.render_height = self.height * self.render_scale
         return self
+    
+    def _apply_quality_to_scene(self, scene):
+        """シーンの要素に品質設定を適用"""
+        from .text_element import TextElement
+        from .image_element import ImageElement
+        from .video_element import VideoElement
+        
+        for element in scene.elements:
+            if isinstance(element, TextElement):
+                if not hasattr(element, 'quality_scale') or element.quality_scale != self.render_scale:
+                    element.quality_scale = self.render_scale
+                    # テクスチャを再作成するためのフラグをリセット
+                    element.texture_created = False
+            # TODO: ImageElementとVideoElementも同様に対応
     
     def _init_opengl(self):
         """OpenGLの初期設定"""
@@ -416,6 +430,10 @@ class MasterScene:
         
         try:
             total_frames = int(self.total_duration * self.fps)
+            
+            # 品質設定をすべてのシーンに適用（一度だけ）
+            for scene in self.scenes:
+                self._apply_quality_to_scene(scene)
 
             # tqdmでプログレスバーを表示
             with tqdm(total=total_frames, desc="Rendering", unit="frames") as pbar:
