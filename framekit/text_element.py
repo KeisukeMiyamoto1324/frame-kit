@@ -326,12 +326,16 @@ class TextElement(VideoBase):
         if self.texture_id is None:
             return
         
-        # Get actual render position using anchor calculation
-        render_x, render_y, _, _ = self.get_actual_render_position()
-        
         # 品質スケールを考慮した表示サイズを計算
         display_width = self.texture_width / self.quality_scale
         display_height = self.texture_height / self.quality_scale
+        
+        # アンカーに基づく位置オフセットを計算（表示サイズを使用）
+        offset_x, offset_y = self._calculate_anchor_offset(display_width, display_height)
+        
+        # 実際の描画位置を計算
+        render_x = self.x + offset_x
+        render_y = self.y + offset_y
         
         # 変換行列を保存
         glPushMatrix()

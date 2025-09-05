@@ -168,6 +168,8 @@ class MasterScene:
                     element.quality_scale = self.render_scale
                     # テクスチャを再作成するためのフラグをリセット
                     element.texture_created = False
+                    # サイズも再計算する
+                    element.calculate_size()
             # TODO: ImageElementとVideoElementも同様に対応
     
     def _init_opengl(self):
