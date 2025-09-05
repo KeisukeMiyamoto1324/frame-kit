@@ -6,6 +6,7 @@ from OpenGL.GL import *
 from PIL import Image
 from video_base import VideoBase
 from .audio_element import AudioElement
+from .master_scene import has_audio_stream
 
 
 class VideoElement(VideoBase):
@@ -116,8 +117,16 @@ class VideoElement(VideoBase):
         
         This method creates an AudioElement instance to handle the video's audio track,
         synchronizing it with the video's timing and playback settings.
+        Only creates the audio element if the video file actually has an audio stream.
         """
         if self._audio_element_created:
+            return
+        
+        # Check if the video file actually has an audio stream
+        if not has_audio_stream(self.video_path):
+            print(f"No audio stream found in video: {self.video_path}")
+            self.audio_element = None
+            self._audio_element_created = True
             return
             
         try:
@@ -126,8 +135,11 @@ class VideoElement(VideoBase):
             # VideoElementと同じstart_timeとdurationを設定
             self._sync_audio_timing()
             self._audio_element_created = True
+            print(f"Created audio element for video: {self.video_path}")
         except Exception as e:
+            print(f"Failed to create audio element for {self.video_path}: {e}")
             self.audio_element = None
+            self._audio_element_created = True
     
     def _sync_audio_timing(self) -> None:
         """Synchronize audio element timing with video element.

@@ -14,9 +14,58 @@ import pygame
 # オーディオ処理用ライブラリの試行インポート
 try:
     import subprocess
+    import json
     HAS_FFMPEG = True
 except ImportError:
     HAS_FFMPEG = False
+
+
+def has_audio_stream(video_path: str) -> bool:
+    """Check if a video file has an audio stream using ffprobe.
+    
+    Args:
+        video_path: Path to the video file
+        
+    Returns:
+        True if the video has at least one audio stream, False otherwise
+    """
+    if not HAS_FFMPEG:
+        return False
+    
+    if not os.path.exists(video_path):
+        return False
+    
+    try:
+        # Use ffprobe to check for audio streams
+        cmd = [
+            'ffprobe', '-v', 'quiet', '-print_format', 'json', 
+            '-show_streams', '-select_streams', 'a', video_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            try:
+                data = json.loads(result.stdout)
+                streams = data.get('streams', [])
+                return len(streams) > 0
+            except json.JSONDecodeError:
+                return False
+        return False
+        
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        # Fallback: try to use OpenCV to detect audio properties
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if cap.isOpened():
+                # Try to get audio properties - if they exist, there's likely audio
+                audio_fourcc = cap.get(cv2.CAP_PROP_AUDIO_STREAM)
+                cap.release()
+                return audio_fourcc != -1.0 and audio_fourcc != 0.0
+            cap.release()
+        except:
+            pass
+        
+        return False
 
 
 class MasterScene:
@@ -59,11 +108,15 @@ class MasterScene:
         from .video_element import VideoElement
         for element in scene.elements:
             if isinstance(element, AudioElement):
+                # Standalone audio elements are always valid
                 self.audio_elements.append(element)
-            elif isinstance(element, VideoElement) and element.get_audio_element():
-                # ビデオ要素からオーディオ要素を取得
+            elif isinstance(element, VideoElement):
+                # Ensure the video element's audio element is created
+                element._ensure_audio_element()
                 audio_element = element.get_audio_element()
-                self.audio_elements.append(audio_element)
+                if audio_element is not None:
+                    # Only add if the video actually has audio
+                    self.audio_elements.append(audio_element)
     
     def set_output(self, filename: str):
         """出力ファイル名を設定"""
@@ -148,31 +201,37 @@ class MasterScene:
         # 存在するオーディオファイルのみを追加（タイミング情報はfilter_complexで処理）
         valid_audio_files = []
         
-        # オーディオタイミング検証
+        # オーディオタイミング検証および音声ストリーム確認
         for audio_element in self.audio_elements:
-            if os.path.exists(audio_element.audio_path):
-                # 警告チェック
-                if audio_element.start_time + audio_element.duration > self.total_duration + 0.1:  # 0.1s tolerance
-                    print(f"  WARNING: Audio extends beyond scene duration ({self.total_duration:.2f}s)")
-                if audio_element.start_time < 0:
-                    print(f"  WARNING: Audio starts before scene start")
+            if not os.path.exists(audio_element.audio_path):
+                print(f"Warning: Audio file not found, skipping: {audio_element.audio_path}")
+                continue
+            
+            # Check if the file has actual audio streams (for video files)
+            if not has_audio_stream(audio_element.audio_path):
+                print(f"Warning: No audio stream found in file, skipping: {audio_element.audio_path}")
+                continue
+            
+            # 警告チェック
+            if audio_element.start_time + audio_element.duration > self.total_duration + 0.1:  # 0.1s tolerance
+                print(f"  WARNING: Audio extends beyond scene duration ({self.total_duration:.2f}s)")
+            if audio_element.start_time < 0:
+                print(f"  WARNING: Audio starts before scene start")
+            
+            # BGMモードでループが必要な場合は複数回入力を追加
+            if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
+                # 必要なループ回数を計算
+                loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
                 
-                # BGMモードでループが必要な場合は複数回入力を追加
-                if getattr(audio_element, 'loop_until_scene_end', False) and audio_element.duration > audio_element.original_duration:
-                    # 必要なループ回数を計算
-                    loop_count = int((audio_element.duration / audio_element.original_duration) + 0.99)
-                    
-                    # 同じファイルを複数回入力として追加
-                    for i in range(loop_count):
-                        cmd.extend(['-i', audio_element.audio_path])
-                    
-                else:
-                    # 通常の単一入力
+                # 同じファイルを複数回入力として追加
+                for i in range(loop_count):
                     cmd.extend(['-i', audio_element.audio_path])
                 
-                valid_audio_files.append(audio_element)
             else:
-                print(f"Warning: Audio file not found, skipping: {audio_element.audio_path}")
+                # 通常の単一入力
+                cmd.extend(['-i', audio_element.audio_path])
+            
+            valid_audio_files.append(audio_element)
         
         if not valid_audio_files:
             print("No valid audio files found, keeping video-only output")

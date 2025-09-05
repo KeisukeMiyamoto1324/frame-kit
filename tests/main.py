@@ -90,12 +90,12 @@ def main() -> None:
     scene = Scene()
     
     bg = (
-        ImageElement(BG_IMAGE)
+        VideoElement(BG_VIDEO)
             .set_scale(1.0)
             .start_at(0)
             .set_duration(VIDEO_DURATION)
             .set_crop(1920, 1080)
-            # .set_loop_until_scene_end()
+            .set_loop_until_scene_end()
     )
     scene.add(bg)
     
@@ -110,11 +110,11 @@ def main() -> None:
     )
     scene.add(earth)
     
-    video = (
-        VideoElement(BG_VIDEO)
-            .set_scale(0.5)
-    )
-    scene.add(video)
+    # video = (
+    #     VideoElement(BG_VIDEO)
+    #         .set_scale(0.5)
+    # )
+    # scene.add(video)
     
     # Character sprites
     # Reimu (left side)
