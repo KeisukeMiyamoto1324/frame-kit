@@ -3,7 +3,7 @@ from typing import Tuple, Optional, List, Dict, Any, Literal, Union
 import numpy as np
 from OpenGL.GL import *
 from PIL import Image, ImageDraw, ImageFont
-from video_base import VideoBase
+from .video_base import VideoBase
 
 
 class TextElement(VideoBase):

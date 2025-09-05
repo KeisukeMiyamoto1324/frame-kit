@@ -8,12 +8,11 @@ This is a Python-based video editor that programmatically generates videos using
 
 ## Development Setup
 
-The project uses a Python virtual environment:
+This is a modern Python package called **framekit** using pyproject.toml configuration:
 - **Virtual Environment**: `venv/` directory contains the Python virtual environment  
-- **Python Version**: Python 3.12
-- **Main Entry Points**: 
-  - `main.py`: Japanese dialogue video demo (yukkuri style) with character sprites and BGM
-  - Additional demos may be created for testing specific features
+- **Python Version**: Python 3.12+
+- **Package Structure**: Proper Python package in `framekit/` directory
+- **Main Entry Point**: `tests/basic.py` contains the Japanese dialogue demo
 
 ### Running the Application
 
@@ -21,17 +20,23 @@ The project uses a Python virtual environment:
 # Activate the virtual environment (macOS/Linux)
 source venv/bin/activate
 
-# Run the main Japanese dialogue demo (yukkuri style video)
-python main.py
+# Run the main Japanese dialogue demo
+PYTHONPATH=$(pwd) python3 -m tests.basic
+
+# Alternative: Install package in development mode
+pip3 install -e .
+python3 -m tests.basic
 ```
 
 ### Development Commands
 
-Since this is a Python project without build tools, development primarily involves:
+Modern Python package development workflow:
 - **Activate environment**: `source venv/bin/activate`
-- **Run demos**: `python main.py` or other test files
+- **Install package**: `pip3 install -e .` (development mode)
+- **Run main demo**: `PYTHONPATH=$(pwd) python3 -m tests.basic`
 - **Install dependencies**: `pip3 install <package>` (avoid `pip`, use `pip3`)
 - **Check outputs**: Generated videos appear in `output/` directory
+- **Package import**: `from framekit import *` (imports all components)
 
 ### Key Dependencies
 
@@ -114,29 +119,36 @@ The architecture follows a clear inheritance structure where all visual elements
 
 ```
 video-editer/
-├── main.py              # Japanese dialogue demo (yukkuri style)
-├── video_base.py        # Base class with positioning, timing, effects
-├── text_element.py      # Text rendering with PIL/OpenGL integration
-├── image_element.py     # Static image rendering with scaling
-├── video_element.py     # Frame-by-frame video clip rendering with audio
-├── audio_element.py     # Audio playback and BGM management  
-├── scene.py             # Scene container for element grouping
-├── master_scene.py      # OpenGL context and video export manager
-├── animation.py         # Animation system for dynamic effects
-├── debug_audio_timing.py # Audio debugging utilities
-├── sample_asset/        # Sample media files (images, videos, fonts, audio)
-├── output/              # Generated MP4 video files
-└── venv/                # Python virtual environment
+├── framekit/                    # Main Python package
+│   ├── __init__.py             # Package exports (from .module import *)
+│   ├── video_base.py           # Base class with inheritance patterns
+│   ├── master_scene.py         # OpenGL context and video export manager
+│   ├── scene.py                # Scene container for element grouping
+│   ├── text_element.py         # Text rendering with PIL/OpenGL integration
+│   ├── image_element.py        # Static image rendering with scaling
+│   ├── video_element.py        # Frame-by-frame video clip rendering with audio
+│   ├── audio_element.py        # Audio playback and BGM management
+│   └── animation.py            # Advanced animation system with manager
+├── tests/
+│   └── basic.py                # Main demo (Japanese dialogue with yukkuri style)
+├── sample_asset/               # Sample media files (images, videos, fonts, audio)
+├── output/                     # Generated MP4 video files
+├── pyproject.toml              # Modern Python project configuration
+├── requirements.txt            # Dependencies
+└── venv/                       # Python virtual environment
 ```
 
 ### Key Architectural Patterns
 
-- **Fluent Interface**: All elements use method chaining (`.position().set_duration().start_at()`)
+- **Package Architecture**: Modern Python package with clean module separation and unified exports
+- **Type Safety**: Extensive use of generics and TypeVar for proper method chaining type hints
+- **Fluent Interface**: All elements use method chaining with proper type preservation
 - **Lazy Loading**: OpenGL textures created only when rendering context exists  
-- **Inheritance**: Common functionality in `VideoBase` (positioning, timing, effects)
+- **Inheritance Hierarchy**: `VideoBase` provides common functionality with proper OOP patterns
 - **Composition**: Scenes group elements, MasterScene manages overall composition
+- **Animation Manager**: Sophisticated multi-animation coordination system
+- **Audio Stream Detection**: FFmpeg integration for professional audio processing
 - **Frame-accurate Timing**: Video elements handle precise frame synchronization
-- **Animation System**: Elements support animations for position, scale, rotation, and alpha changes
 
 ### Output Structure
 
@@ -223,11 +235,14 @@ master_scene.add(scene)
 ### Complete Video Creation Example
 
 ```python
-from master_scene import MasterScene
-from scene import Scene  
-from text_element import TextElement
-from image_element import ImageElement
-from video_element import VideoElement
+# Modern package import
+from framekit import *
+# OR specific imports:
+from framekit.master_scene import MasterScene
+from framekit.scene import Scene  
+from framekit.text_element import TextElement
+from framekit.image_element import ImageElement
+from framekit.video_element import VideoElement
 
 # Create master scene
 master_scene = MasterScene(width=1920, height=1080, fps=30)
@@ -251,7 +266,7 @@ master_scene.render()
 
 ### Japanese Dialogue Creation Pattern
 
-For dialogue videos with character sprites and timed subtitles, use this pattern from `main.py`:
+For dialogue videos with character sprites and timed subtitles, use this pattern from `tests/basic.py`:
 
 ```python
 def create_dialogue_subtitle(text, start_time, duration=4.0, font_path=None, bold=True):
@@ -325,12 +340,15 @@ scene.add(video)
 
 ### Audio Integration Architecture
 
-The audio system uses a composition pattern where:
+The audio system uses a sophisticated composition pattern:
 
-1. **VideoElement** automatically creates an associated **AudioElement** for video soundtracks
-2. **Scene** manages BGM duration adjustments based on scene length
-3. **MasterScene** collects all audio sources and uses FFmpeg for final mixing
-4. **FFmpeg Integration**: Handles complex audio operations like looping (`-stream_loop -1`), volume control (`volume=N`), and timing (`-itsoffset`)
+1. **FFmpeg Stream Detection**: Uses `ffprobe` subprocess calls to validate audio streams
+2. **VideoElement**: Automatically creates associated **AudioElement** for video soundtracks
+3. **Scene**: Manages BGM duration adjustments based on scene length  
+4. **MasterScene**: Collects all audio sources and uses FFmpeg for final mixing
+5. **Audio Stream Validation**: `has_audio_stream()` function checks video files before processing
+6. **Multi-track Mixing**: Professional audio mixing with volume control, fading, and timing
+7. **FFmpeg Integration**: Complex operations like looping (`-stream_loop -1`), volume (`volume=N`), timing (`-itsoffset`)
 
 ### Coordinate System
 
@@ -379,7 +397,9 @@ The codebase supports corner radius for text, image, and video elements. When co
 Elements support animations for dynamic effects using the animation system:
 
 ```python
-from animation import LinearAnimation, EasingAnimation, BounceAnimation
+from framekit.animation import LinearAnimation, EasingAnimation, BounceAnimation
+# OR with package import:
+from framekit import *
 
 # Position animation (slide in from left)
 position_anim = LinearAnimation(

@@ -1,6 +1,6 @@
 from typing import Dict, Optional, Tuple, Any, Literal, Union, TypeVar
 from PIL import Image, ImageDraw
-from animation import Animation, AnimationManager, RepeatingAnimation
+from .animation import Animation, AnimationManager, RepeatingAnimation
 
 # TypeVar for method chaining with inheritance
 VideoBaseT = TypeVar('VideoBaseT', bound='VideoBase')

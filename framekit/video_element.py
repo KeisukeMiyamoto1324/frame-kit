@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from OpenGL.GL import *
 from PIL import Image
-from video_base import VideoBase
+from .video_base import VideoBase
 from .audio_element import AudioElement
 from .master_scene import has_audio_stream
 
@@ -124,7 +124,6 @@ class VideoElement(VideoBase):
         
         # Check if the video file actually has an audio stream
         if not has_audio_stream(self.video_path):
-            print(f"No audio stream found in video: {self.video_path}")
             self.audio_element = None
             self._audio_element_created = True
             return

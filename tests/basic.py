@@ -1,12 +1,12 @@
-# PYTHONPATH=$(pwd)/src python3 -m tests.main
+# PYTHONPATH=$(pwd)/src python3 -m tests.basic
 
 from typing import Optional
-from src.master_scene import MasterScene
-from src.scene import Scene
-from src.text_element import TextElement
-from src.audio_element import AudioElement
-from src.image_element import ImageElement
-from src.video_element import VideoElement
+from framekit.master_scene import MasterScene
+from framekit.scene import Scene
+from framekit.text_element import TextElement
+from framekit.audio_element import AudioElement
+from framekit.image_element import ImageElement
+from framekit.video_element import VideoElement
 
 def create_dialogue_subtitle(text: str, start_time: float, duration: float = 4.0, 
                            font_path: Optional[str] = None, bold: bool = True) -> TextElement:

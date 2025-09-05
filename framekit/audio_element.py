@@ -1,7 +1,7 @@
 import os
 from typing import Optional, Dict, Any, Union
 import numpy as np
-from video_base import VideoBase
+from .video_base import VideoBase
 
 # オーディオライブラリのインポートを試行
 try:

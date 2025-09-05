@@ -1,5 +1,5 @@
 from typing import List
-from video_base import VideoBase
+from .video_base import VideoBase
 
 
 class Scene:
