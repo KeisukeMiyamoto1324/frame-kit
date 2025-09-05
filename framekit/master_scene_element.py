@@ -70,14 +70,25 @@ def has_audio_stream(video_path: str) -> bool:
 
 class MasterScene:
     """マスターシーンクラス - 全体の動画を管理"""
-    def __init__(self, width: int = 1920, height: int = 1080, fps: int = 60):
+    def __init__(self, width: int = 1920, height: int = 1080, fps: int = 60, quality: str = "medium"):
         self.width = width
         self.height = height
         self.fps = fps
+        self.quality = quality  # "low", "medium", "high"
         self.scenes: List[Scene] = []
         self.total_duration = 0.0
         self.output_filename = "output_video.mp4"
         self.audio_elements = []  # オーディオ要素を追跡
+        
+        # 品質設定に基づいてスーパーサンプリング倍率を設定
+        self.quality_multipliers = {
+            "low": 1,     # 1x (現在の動作)
+            "medium": 2,  # 2x スーパーサンプリング
+            "high": 4     # 4x スーパーサンプリング
+        }
+        self.render_scale = self.quality_multipliers.get(quality, 2)
+        self.render_width = width * self.render_scale
+        self.render_height = height * self.render_scale
     
     def add(self, scene: Scene):
         """シーンを追加"""
@@ -123,6 +134,28 @@ class MasterScene:
         self.output_filename = filename
         return self
     
+    def set_quality(self, quality: str):
+        """レンダリング品質を設定
+        
+        Args:
+            quality: 品質レベル ("low", "medium", "high")
+                - "low": 1x レンダリング (高速、低品質)
+                - "medium": 2x スーパーサンプリング (バランス型)
+                - "high": 4x スーパーサンプリング (高品質、低速)
+        
+        Returns:
+            Self for method chaining
+        """
+        if quality not in self.quality_multipliers:
+            print(f"Warning: Invalid quality '{quality}'. Using 'medium' instead.")
+            quality = "medium"
+        
+        self.quality = quality
+        self.render_scale = self.quality_multipliers[quality]
+        self.render_width = self.width * self.render_scale
+        self.render_height = self.height * self.render_scale
+        return self
+    
     def _init_opengl(self):
         """OpenGLの初期設定"""
         glClearColor(0.0, 0.0, 0.0, 1.0)
@@ -130,9 +163,14 @@ class MasterScene:
         glLoadIdentity()
         
         # 座標系を設定（左上が原点、ピクセル座標系）
+        # 重要: 座標系は出力解像度のまま維持（スケールしない）
+        # これにより既存の要素の位置指定が正しく動作する
         glOrtho(0, self.width, self.height, 0, -1.0, 1.0)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
+        
+        # ビューポートを高解像度レンダリング用に設定
+        glViewport(0, 0, self.render_width, self.render_height)
         
         # ブレンディングを有効にしてアルファ値を使用可能に
         glEnable(GL_BLEND)
@@ -165,11 +203,17 @@ class MasterScene:
     
     def _capture_frame(self):
         """現在の画面をキャプチャ"""
-        pixels = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
+        # 高解像度でキャプチャ
+        pixels = glReadPixels(0, 0, self.render_width, self.render_height, GL_RGB, GL_UNSIGNED_BYTE)
         image = np.frombuffer(pixels, dtype=np.uint8)
-        image = image.reshape((self.height, self.width, 3))
+        image = image.reshape((self.render_height, self.render_width, 3))
         image = np.flipud(image)  # OpenGLは左下が原点なので上下反転
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        
+        # スーパーサンプリングの場合は出力解像度にダウンスケール
+        if self.render_scale > 1:
+            image = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        
         return image
     
     def _create_audio_mix(self, video_path: str):
@@ -358,9 +402,9 @@ class MasterScene:
         # Pygameを初期化
         pygame.init()
         
-        # OpenGLウィンドウを作成
+        # OpenGLウィンドウを作成（高解像度レンダリング用）
         screen = pygame.display.set_mode(
-            (self.width, self.height), 
+            (self.render_width, self.render_height), 
             pygame.DOUBLEBUF | pygame.OPENGL | pygame.HIDDEN
         )
         

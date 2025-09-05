@@ -48,7 +48,7 @@ def main() -> None:
     # === Assets ===
     BG_IMAGE = "sample_asset/bg.jpg"
     BG_VIDEO = "sample_asset/bg.mp4"
-    EARTH_IMAGE = "sample_asset/earth.jpg"
+    EARTH_IMAGE = "sample_asset/white.jpg"
     REIMU_SPRITE = "sample_asset/reimu.png"
     MARISA_SPRITE = "sample_asset/marisa.png"
     BGM_FILE = "sample_asset/yukkuri_bgm.mp3"
@@ -69,35 +69,35 @@ def main() -> None:
     # === Dialogue Script ===
     dialogues = [
         ("こんにちは！今日は地球について解説するのだ！", 2, 4),
-        ("よろしくね～。地球は太陽系の第3惑星なのぜ。", 6, 4),
-        ("地球の直径は約12,742キロメートルで、\n表面の71%が海で覆われているのだ。", 10, 5),
-        ("そうそう！そして地球には約80億人の人間が\n住んでいるのぜ～", 15, 5),
-        ("地球の大気は窒素が78%、酸素が21%で\n残りの1%がその他のガスなのだ。", 20, 5),
-        ("この絶妙なバランスが生命を育んでいるのぜ！", 25, 4),
-        ("地球は約46億年前に誕生して、\n生命が現れたのは約35億年前なのだ。", 29, 5),
-        ("すごく長い歴史があるのぜ～\n人類はまだ新参者なのだ。", 34, 4),
-        ("地球の自転周期は24時間、\n公転周期は365.25日なのだ。", 38, 4),
-        ("だから1年は365日で、4年に1度\nうるう年があるのぜ！", 42, 4),
-        ("地球は本当に美しい惑星なのだ。\n大切にしなければいけないぜ。", 46, 5),
-        ("今日の地球解説はここまでなのぜ！\nまた次回も見てくれよな～", 51, 5),
+        # ("よろしくね～。地球は太陽系の第3惑星なのぜ。", 6, 4),
+        # ("地球の直径は約12,742キロメートルで、\n表面の71%が海で覆われているのだ。", 10, 5),
+        # ("そうそう！そして地球には約80億人の人間が\n住んでいるのぜ～", 15, 5),
+        # ("地球の大気は窒素が78%、酸素が21%で\n残りの1%がその他のガスなのだ。", 20, 5),
+        # ("この絶妙なバランスが生命を育んでいるのぜ！", 25, 4),
+        # ("地球は約46億年前に誕生して、\n生命が現れたのは約35億年前なのだ。", 29, 5),
+        # ("すごく長い歴史があるのぜ～\n人類はまだ新参者なのだ。", 34, 4),
+        # ("地球の自転周期は24時間、\n公転周期は365.25日なのだ。", 38, 4),
+        # ("だから1年は365日で、4年に1度\nうるう年があるのぜ！", 42, 4),
+        # ("地球は本当に美しい惑星なのだ。\n大切にしなければいけないぜ。", 46, 5),
+        # ("今日の地球解説はここまでなのぜ！\nまた次回も見てくれよな～", 51, 5),
     ]
     
     # Create master scene
-    master_scene = MasterScene(width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS)
+    master_scene = MasterScene(width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS, quality="low")
     master_scene.set_output(OUTPUT_FILE)
     
     # Create main scene
     scene = Scene()
     
-    bg = (
-        VideoElement(BG_VIDEO)
-            .set_scale(1.0)
-            .start_at(0)
-            # .set_duration(VIDEO_DURATION)
-            .set_crop(1920, 1080)
-            .set_loop_until_scene_end()
-    )
-    scene.add(bg)
+    # bg = (
+    #     VideoElement(BG_VIDEO)
+    #         .set_scale(1.0)
+    #         .start_at(0)
+    #         # .set_duration(VIDEO_DURATION)
+    #         .set_crop(1920, 1080)
+    #         .set_loop_until_scene_end()
+    # )
+    # scene.add(bg)
     
     # Background - Earth image (centered)
     earth = (
@@ -107,6 +107,8 @@ def main() -> None:
             # .set_duration(VIDEO_DURATION)
             .position(VIDEO_WIDTH//2, VIDEO_HEIGHT//2, anchor="center")
             .set_crop(800, 600)
+            .set_corner_radius(20)
+            .set_loop_until_scene_end()
     )
     scene.add(earth)
     
@@ -146,7 +148,7 @@ def main() -> None:
     # Background music
     bgm = (
         AudioElement(BGM_FILE)
-            # .set_volume(0.2)
+            .set_volume(0.5)
             .set_loop_until_scene_end(True)
             .start_at(0)
     )
