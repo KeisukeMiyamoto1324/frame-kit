@@ -32,34 +32,39 @@ class Scene:
         """
         from .audio_element import AudioElement
         from .video_element import VideoElement
+        from .image_element import ImageElement
         
         self.elements.append(element)
         
-        # BGMモードでないオーディオ要素とループモードでないビデオ要素と他の要素のみがシーン時間に影響
+        # BGMモードでないオーディオ要素とループモードでないビデオ/画像要素と他の要素のみがシーン時間に影響
         is_bgm_audio = isinstance(element, AudioElement) and getattr(element, 'loop_until_scene_end', False)
         is_loop_video = isinstance(element, VideoElement) and (getattr(element, 'loop_until_scene_end', False) or getattr(element, '_wants_scene_duration', False))
+        is_loop_image = isinstance(element, ImageElement) and (getattr(element, 'loop_until_scene_end', False) or getattr(element, '_wants_scene_duration', False))
         
-        if not (is_bgm_audio or is_loop_video):
+        if not (is_bgm_audio or is_loop_video or is_loop_image):
             element_end_time = element.start_time + element.duration
             self.duration = max(self.duration, element_end_time)
         
-        # BGMモードのオーディオ要素とループモードのビデオ要素の持続時間を更新（シーン時間決定後）
+        # BGMモードのオーディオ要素とループモードのビデオ/画像要素の持続時間を更新（シーン時間決定後）
         self._update_loop_element_durations()
         return self
     
     def _update_loop_element_durations(self) -> None:
         """Update loop element durations to match scene length.
         
-        This method finds all audio and video elements with loop_until_scene_end=True
+        This method finds all audio, video, and image elements with loop_until_scene_end=True
         and updates their duration to match the scene's total duration.
         """
         from .audio_element import AudioElement
         from .video_element import VideoElement
+        from .image_element import ImageElement
         
         for element in self.elements:
             if isinstance(element, AudioElement) and element.loop_until_scene_end:
                 element.update_duration_for_scene(self.duration)
             elif isinstance(element, VideoElement) and (element.loop_until_scene_end or getattr(element, '_wants_scene_duration', False)):
+                element.update_duration_for_scene(self.duration)
+            elif isinstance(element, ImageElement) and (element.loop_until_scene_end or getattr(element, '_wants_scene_duration', False)):
                 element.update_duration_for_scene(self.duration)
     
     def start_at(self, time: float) -> 'Scene':

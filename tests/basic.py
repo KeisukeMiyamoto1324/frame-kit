@@ -123,7 +123,6 @@ def main() -> None:
             .position(200, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
-            # .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
     )
     scene.add(reimu)
@@ -134,8 +133,8 @@ def main() -> None:
             .position(1720, 900, "center")
             .set_scale(CHARACTER_SCALE)
             .start_at(0)
-            # .set_duration(VIDEO_DURATION)
             .set_crop(200, 200)
+            .set_loop_until_scene_end()
     )
     scene.add(marisa)
     

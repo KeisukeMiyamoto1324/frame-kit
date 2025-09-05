@@ -37,6 +37,8 @@ class ImageElement(VideoBase):
         self.texture_height: int = 0
         self.original_width: int = 0
         self.original_height: int = 0
+        self.loop_until_scene_end: bool = False
+        self._wants_scene_duration: bool = False
         self._create_image_texture()
         # 初期化時にサイズを計算
         self.calculate_size()
@@ -132,6 +134,61 @@ class ImageElement(VideoBase):
             self.texture_created = False
         # サイズを再計算
         self.calculate_size()
+        return self
+    
+    def set_loop_until_scene_end(self, loop: bool = True) -> 'ImageElement':
+        """Set whether to display image until scene ends.
+        
+        When enabled, the image will automatically adjust its duration to match
+        the parent scene's duration, staying visible for the entire scene.
+        
+        Args:
+            loop: If True, image will be displayed until the scene ends
+            
+        Returns:
+            Self for method chaining
+        """
+        self.loop_until_scene_end = loop
+        
+        # If enabling loop mode, mark that we want to inherit scene duration
+        if loop:
+            self._wants_scene_duration = True
+
+        return self
+    
+    def update_duration_for_scene(self, scene_duration: float) -> None:
+        """Update duration to match scene duration when in loop mode.
+        
+        Args:
+            scene_duration: Duration of the containing scene in seconds
+        """
+        if self.loop_until_scene_end or self._wants_scene_duration:
+            # 画像はシーンの長さに合わせて表示時間を調整
+            if scene_duration > 0:  # シーンに他の要素がある場合のみ
+                self.duration = scene_duration
+    
+    def start_at(self, start_time: float) -> 'ImageElement':
+        """Set start time.
+        
+        Args:
+            start_time: Start time in seconds
+            
+        Returns:
+            Self for method chaining
+        """
+        super().start_at(start_time)
+        return self
+    
+    def set_duration(self, duration: float) -> 'ImageElement':
+        """Set duration.
+        
+        Args:
+            duration: Duration in seconds
+            
+        Returns:
+            Self for method chaining
+        """
+        super().set_duration(duration)
         return self
     
     def render(self, time: float) -> None:
